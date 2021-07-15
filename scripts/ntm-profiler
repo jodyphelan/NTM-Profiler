@@ -1,12 +1,14 @@
 import sys
 import argparse
 import ntm_profiler as ntmp
-
+import os
 
 def main_speciate(args):
     if args.external_db:
         conf = ntmp.get_conf_dict_with_path(args.external_db)
     else:
+        if args.db=="ntm_db" and not os.path.isfile(f"{sys.base_prefix}/share/ntm_profiler/ntm_db.kmers.txt"):
+            ntmp.run_cmd("ntm-profiler update_db")
         conf = ntmp.get_conf_dict(args.db)
 
     results = {"sample_name":args.prefix}
