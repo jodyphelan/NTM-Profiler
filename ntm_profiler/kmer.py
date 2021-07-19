@@ -23,7 +23,7 @@ def check_for_kmers(kmer_list_file,read1,read2=None):
     tmp = str(uuid4())
     fastq_files = f"-file {read1}"
     if read2:
-        fastq_files = fastq_files + f" -file {read2}"
+        fastq_files = fastq_files + f",{read2}"
     run_cmd("dsk %s -out %s" % (fastq_files,tmp))
     run_cmd("dsk2ascii -file %s.h5 -out %s.kmers.txt" % (tmp,tmp))
 
