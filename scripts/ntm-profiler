@@ -13,7 +13,7 @@ def main_speciate(args):
         conf = ntmp.get_conf_dict(args.db)
 
     results = {"sample_name":args.prefix}
-    results["species"] = ntmp.check_for_kmers(conf["kmers"],args.read1)
+    results["species"] = ntmp.check_for_kmers(conf["kmers"],args.read1,args.read2)
     outfile = "%s.species.txt" % args.prefix
     ntmp.write_speciation_results(results,outfile)
     
