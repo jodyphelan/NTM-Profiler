@@ -5,7 +5,7 @@ setuptools.setup(
 
 	name="ntm_profiler",
 
-	version="0.0.1",
+	version="0.0.2",
 	packages=["ntm_profiler"],
 	license="GPLv3",
 	long_description="NTM-Profiler command line tool",
