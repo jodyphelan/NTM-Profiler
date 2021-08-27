@@ -1,22 +1,29 @@
 
 import os
 from .utils import filecheck
-def collate_results(outfile,samples=None,directory="."):
-    if samples:
-        samples = [x.rstrip() for x in open(args.samples).readlines()]
+import csv
+
+def collate_results(outfile,samples_file=None,directory=".",sep="\t"):
+    if samples_file:
+        samples = [x.rstrip() for x in open(samples_file).readlines()]
     else:
         samples = [x.replace(".species.txt","") for x in os.listdir(directory) if x[-len(".species.txt"):]==".species.txt"]
 
     rows = []
     for s in samples:
-        for l in open(filecheck(f"{directory}/{s}.species.txt")):
-            pass
-        rows.append(l.strip().split())
+        tmp = []
+        for r in csv.DictReader(open(filecheck(f"{directory}/{s}.species.txt")),delimiter="\t"):
+            tmp.append(r)
+        combined_row = {"sample":s}
+        for col in r:
+            combined_row[col] = ";".join([str(x[col]) for x in tmp])
+        rows.append(combined_row)
+            
 
     with open(outfile,"w") as O:
-        O.write("Sample\tSpecies\tCoverage\tCoverage_SD\n")
-        for row in rows:
-            O.write("\t".join(row)+"\n")
+        writer = csv.DictWriter(O,fieldnames = list(rows[0]),delimiter=sep)
+        writer.writeheader()
+        writer.writerows(rows)
         
 def write_speciation_results(results,outfile):
     with open(outfile,"w") as O:
