@@ -12,10 +12,11 @@ def collate_results(outfile,samples_file=None,directory=".",sep="\t"):
     rows = []
     for s in samples:
         tmp = []
-        for r in csv.DictReader(open(filecheck(f"{directory}/{s}.species.txt")),delimiter="\t"):
+        IN = csv.DictReader(open(filecheck(f"{directory}/{s}.species.txt")),delimiter="\t")
+        for r in IN
             tmp.append(r)
         combined_row = {"sample":s}
-        for col in r:
+        for col in IN.fieldnames:
             combined_row[col] = ";".join([str(x[col]) for x in tmp])
         rows.append(combined_row)
             
