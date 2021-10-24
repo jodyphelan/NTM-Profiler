@@ -1,5 +1,6 @@
 from .utils import *
 from .output import *
 from .kmer import *
-
-_VERSION="0.0.2"
+from .reformat import *
+from .db import *
+__version__="0.0.2"

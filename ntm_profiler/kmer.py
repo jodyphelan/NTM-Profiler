@@ -1,5 +1,5 @@
 import os
-from .utils import run_cmd, revcom
+from pathogenprofiler import run_cmd, revcom
 import statistics as stats
 from tqdm import tqdm
 from uuid import uuid4
@@ -53,3 +53,5 @@ def check_for_kmers(kmer_list_file,read1,read2=None):
         species_support.append({"species":s,"mean":mean,"std":std})
 
     return species_support
+
+
