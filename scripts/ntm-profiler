@@ -61,10 +61,10 @@ def main_profile(args):
             sys.stderr.write("Profiling complete!\n")
             quit(0)
         conf = ntmp.get_resistance_db(db_name)
-    elif args.external_db:
-        conf = ntmp.get_resistance_db(args.external_db)
+    elif args.external_resistance_db:
+        conf = ntmp.get_resistance_db(args.external_resistance_db)
     else:
-        conf = ntmp.get_resistance_db(args.db)
+        conf = ntmp.get_resistance_db(args.resistance_db)
 
 
 
@@ -243,7 +243,7 @@ parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the fi
 parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
 parser_sub.add_argument('--csv','-c',type=str,help='The prefix for all output files',required = True)
 parser_sub.add_argument('--watchlist','-w',type=str,help='A csv file containing genes to profile but without any specific associated mutations')
-parser_sub.add_argument('--seqname','-s',type=str,help='The prefix for all output files')
+parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--custom',action="store_true",help='Tells the script this is a custom database, this is used to alter the generation of the version file')
 parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
