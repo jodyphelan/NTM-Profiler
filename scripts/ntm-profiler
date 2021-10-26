@@ -54,7 +54,7 @@ def main_profile(args):
             sys.stderr.write("No resistance database was specified. Attempting to use database based on species prediction...\n")
             db_name = species_prediction[0]["species"].replace(" ","_")
             conf = ntmp.get_resistance_db(db_name,fcheck=False)
-        if len(species_prediction)>1 or not os.path.isfile(conf["ref"]):
+        if len(species_prediction)>1 or len(species_prediction)==0 or not os.path.isfile(conf["ref"]):
             sys.stderr.write(f"No resistance db found for {db_name}.\n")
             json.dump(results,open(json_output,"w"))
             if args.txt:
