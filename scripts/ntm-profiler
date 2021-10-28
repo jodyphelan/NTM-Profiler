@@ -49,13 +49,22 @@ def main_profile(args):
     results['software_version'] = ntmp.__version__
     results['pipeline_software'] = [{"Analysis":"Kmer counting","Program":"dsk"}]
     results['species_db_version'] = json.load(open(species_db["version"]))
-    if not args.external_resistance_db and not args.resistance_db and len(species_prediction)>=1:
+    ntmp.log(species_prediction)
+    if not args.external_resistance_db and not args.resistance_db:
         if len(species_prediction)==1:
             sys.stderr.write("No resistance database was specified. Attempting to use database based on species prediction...\n")
             db_name = species_prediction[0]["species"].replace(" ","_")
             conf = ntmp.get_resistance_db(db_name,fcheck=False)
         if len(species_prediction)>1 or len(species_prediction)==0 or not os.path.isfile(conf["ref"]):
-            sys.stderr.write(f"No resistance db found for {db_name}.\n")
+            if len(species_prediction)>1:
+                sys.stderr.write(f"Multiple species found.\n")
+            elif len(species_prediction)==0:
+                sys.stderr.write(f"Species classification failed.\n")
+            elif not os.path.isfile(conf["ref"]):
+                sys.stderr.write(f"No resistance db found for {db_name}.\n")
+            
+            conf = None
+
             json.dump(results,open(json_output,"w"))
             if args.txt:
                 ntmp.write_text(results,conf,text_output,extra_columns,reporting_af=args.reporting_af)
