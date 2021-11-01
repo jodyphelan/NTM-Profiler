@@ -44,7 +44,6 @@ def check_for_kmers(kmer_list_file,read1,read2=None):
         kmer_support.append({"kmer":kmer,"species":species,"num":num})
         species_set.add(species)
 
-    log(kmer_support)
     species_support = []
     for s in species_set:
         support = [x["num"] for x in kmer_support if x["species"]==s]

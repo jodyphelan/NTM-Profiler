@@ -49,7 +49,6 @@ def main_profile(args):
     results['software_version'] = ntmp.__version__
     results['pipeline_software'] = [{"Analysis":"Kmer counting","Program":"dsk"}]
     results['species_db_version'] = json.load(open(species_db["version"]))
-    ntmp.log(species_prediction)
     if not args.external_resistance_db and not args.resistance_db:
         if len(species_prediction)==1:
             sys.stderr.write("No resistance database was specified. Attempting to use database based on species prediction...\n")
