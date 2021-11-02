@@ -28,7 +28,8 @@ def cleanup():
             outfile = "%s.errlog" % args.prefix
         elif "vcf" in vars(args):
             outfile = "%s.errlog" % args.vcf.split("/")[-1]
-
+        else:
+            outfile = "%s.errlog" % args.outfile
         with open(outfile, "w") as O:
             O.write("# tb-profiler error report\n\n")
             O.write("* OS: %s\n" % sys.platform)

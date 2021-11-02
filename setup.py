@@ -12,5 +12,5 @@ setuptools.setup(
 	scripts= [
 		'scripts/ntm-profiler'
 		],
-	data_files=[('share/ntm_profiler',["db/ntm_db.kmers.txt"])]
+	# data_files=[('share/ntm_profiler',["db/ntm_db.kmers.txt"])]
 )

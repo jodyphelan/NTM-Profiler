@@ -141,18 +141,13 @@ def write_species_text(json_results,conf,outfile,sep="\t"):
 def collate(args):
     # Get a dictionary with the database file: {"ref": "/path/to/fasta" ... etc. }
     
-
-
-    
     if args.samples:
         samples = [x.rstrip() for x in open(args.samples).readlines()]
     else:
         samples = [x.replace(args.suffix,"") for x in os.listdir(args.dir) if x[-len(args.suffix):]==args.suffix]
 
-    print(samples)
-    # Loop through the sample result files
 
-    
+    # Loop through the sample result files    
     species = {}
     dr = defaultdict(lambda: defaultdict(list))
     drugs = set()
@@ -163,16 +158,37 @@ def collate(args):
         
         if "resistance_genes" in data:
             for gene in data["resistance_genes"]:
-                for d in gene["drugs"]
-                    dr[s][d["drug"]].append(f"{gene['gene']}_")
-        rows.append(result)
+                for d in gene["drugs"]:
+                    drugs.add(d["drug"])
+                    dr[s][d["drug"]].append(f"{gene['gene']}_resistance_gene")
+        
+            for var in data["dr_variants"]:
+                for d in var["drugs"]:
+                    drugs.add(d["drug"])
+                    dr[s][d["drug"]].append(f"{var['gene']}_{var['change']}")
 
+    results = []
+    for s in samples:
+        result = {
+            "id": s,
+            "species": species[s]
+            }
+        for d in sorted(drugs):
+            if s in dr:
+                if d in dr[s]:
+                    result[d] = ";".join(dr[s][d])
+                else:
+                    result[d] = ""
+            else:
+                result[d] = "N/A"
+        results.append(result)
+    
     if args.format=="txt":
         args.sep = "\t"
     else:
         args.sep = ","
 
     with open(args.outfile,"w") as O:
-        writer = csv.DictWriter(O,fieldnames=list(rows[0]),delimiter=args.sep)
+        writer = csv.DictWriter(O,fieldnames=list(results[0]),delimiter=args.sep)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(results)
