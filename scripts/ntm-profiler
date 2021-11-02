@@ -8,6 +8,58 @@ import tbprofiler as tbp
 import pathogenprofiler as pp
 from uuid import uuid4
 import json
+import glob
+import atexit
+
+
+
+files_prefix = None
+conf = None
+@atexit.register
+def cleanup():
+    if "last_traceback" in vars(sys):
+        if files_prefix and not args.no_cleanup:
+            sys.stderr.write("Cleaning up after failed run\n")
+            for f in glob.glob(files_prefix+"*"):
+                os.remove(f)
+        import traceback
+        
+        if "prefix" in vars(args):
+            outfile = "%s.errlog" % args.prefix
+        elif "vcf" in vars(args):
+            outfile = "%s.errlog" % args.vcf.split("/")[-1]
+
+        with open(outfile, "w") as O:
+            O.write("# tb-profiler error report\n\n")
+            O.write("* OS: %s\n" % sys.platform)
+            O.write("* Program version: %s\n" % tbp.__version__)
+            O.write("* Database version: %s\n" % json.load(open(conf["version"]))["commit"]) if conf else ""
+            O.write("* Program call:\n")
+            O.write("```\n")
+            O.write("%s\n" % vars(args))
+            O.write("```\n")
+
+            O.write("## Traceback:\n")
+            O.write("```\n")
+            traceback.print_tb(sys.last_traceback,file=O)
+            O.write("```\n")
+
+            O.write("## Value:\n")
+            O.write("```\n")
+            O.write("%s" % sys.last_value)
+            O.write("```\n")
+        sys.stderr.write("""\n
+################################# ERROR #######################################
+
+This run has failed. Please check all arguments and make sure all input files
+exist. If no solution is found, please open up an issue at
+https://github.com/jodyphelan/TBProfiler/issues/new and paste or attach the
+contents of the error log (%s)
+
+###############################################################################
+""" % (outfile))
+
+
 
 def main_profile(args):
 
@@ -36,10 +88,10 @@ def main_profile(args):
     if not args.no_species:
         ### Run profiling module from pathogen-profiler ###
         if args.bam==None:
-            species_prediction = ntmp.check_for_kmers(species_db["kmers"],args.read1,args.read2)
+            species_prediction = ntmp.check_for_kmers(species_db["kmers"],args.read1,args.read2,threads=args.threads)
         else:
             pp.run_cmd(f"samtools fastq {args.bam} > {files_prefix}.fq")
-            species_prediction = ntmp.check_for_kmers(species_db["kmers"],files_prefix+".fq")
+            species_prediction = ntmp.check_for_kmers(species_db["kmers"],files_prefix+".fq",threads=args.threads)
     else:
         species_prediction = {}
 
@@ -66,7 +118,10 @@ def main_profile(args):
 
             json.dump(results,open(json_output,"w"))
             if args.txt:
-                ntmp.write_text(results,conf,text_output,extra_columns,reporting_af=args.reporting_af)
+                ntmp.write_text(results,conf,text_output,extra_columns,reporting_af=args.reporting_af,sep="\t")
+            if args.csv:
+                ntmp.write_text(results,conf,text_output,extra_columns,reporting_af=args.reporting_af,sep=",")
+
             sys.stderr.write("Profiling complete!\n")
             quit(0)
         conf = ntmp.get_resistance_db(db_name)
@@ -163,7 +218,7 @@ def main_profile(args):
     if args.txt:
         ntmp.write_text(results,conf,text_output,extra_columns,reporting_af=args.reporting_af)
     if args.csv:
-        ntmp.write_csv(results,conf,csv_output,extra_columns)
+        ntmp.write_text(results,conf,csv_output,extra_columns)
 
 
     pp.run_cmd(f"rm {files_prefix}*")
@@ -182,21 +237,47 @@ def load_resistance_db(args):
 
 
 def main_speciate(args):
-    if args.external_db:
-        conf = ntmp.get_conf_dict_with_path(args.external_db)
-    else:
-        if args.db=="ntm_db" and not os.path.isfile(f"{sys.base_prefix}/share/ntm_profiler/ntm_db.kmers.txt"):
-            ntmp.run_cmd("ntm-profiler update_db")
-        conf = ntmp.get_conf_dict(args.db)
+    ### Create folders for results if they don't exist ###
+    if pp.nofolder(args.dir):
+        os.mkdir(args.dir)
 
-    results = {"sample_name":args.prefix}
-    results["species"] = ntmp.check_for_kmers(conf["kmers"],args.read1,args.read2)
-    outfile = "%s.species.txt" % args.prefix
-    ntmp.write_speciation_results(results,outfile)
-    
+    ### Setup prefix for files ###
+    global files_prefix
+    args.tmp_prefix = str(uuid4())
+    files_prefix = args.dir+"/"+args.tmp_prefix
+
+    json_output = args.dir+"/"+args.prefix+".results.json"
+    text_output = args.dir+"/"+args.prefix+".results.txt"
+    csv_output = args.dir+"/"+args.prefix+".results.csv"
+    extra_columns = [x.lower() for x in args.add_columns.split(",")] if args.add_columns else []
+
+    if args.external_species_db:
+        species_db = ntmp.get_species_db(args.external_species_db)
+    else:
+        species_db = ntmp.get_species_db(args.species_db)
+
+    if args.bam==None:
+        species_prediction = ntmp.check_for_kmers(species_db["kmers"],args.read1,args.read2,threads=args.threads)
+    else:
+        pp.run_cmd(f"samtools fastq {args.bam} > {files_prefix}.fq")
+        species_prediction = ntmp.check_for_kmers(species_db["kmers"],files_prefix+".fq",threads=args.threads)
+
+    results = {"id":args.prefix,"species": species_prediction}
+    results['software_version'] = ntmp.__version__
+    results['pipeline_software'] = [{"Analysis":"Kmer counting","Program":"dsk"}]
+    results['species_db_version'] = json.load(open(species_db["version"]))
+
+    json.dump(results,open(json_output,"w"))
+    if args.txt:
+        ntmp.write_text(results,species_db,text_output,sep="\t")
+    if args.csv:
+        ntmp.write_text(results,species_db,csv_output,sep=",")
+
+    sys.stderr.write("Profiling complete!\n")
+
 
 def main_collate(args):
-    ntmp.collate_results(args.outfile,args.samples,args.dir)
+    ntmp.collate(args)
 
 
 def main_update_db(args):
@@ -205,36 +286,41 @@ def main_update_db(args):
         ntmp.run_cmd("mkdir %s " % (sys.base_prefix+"/share/ntm_profiler/"))
     urllib.request.urlretrieve("https://raw.githubusercontent.com/jodyphelan/NTM-Profiler/main/db/ntm_db.kmers.txt",f"{sys.base_prefix}/share/ntm_profiler/ntm_db.kmers.txt")
 
+
+
 #### Argument Parsing ####
 
 parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 subparsers = parser.add_subparsers(help="Task to perform")
 
-# Profile #
 parser_sub = subparsers.add_parser('speciate', help='Run whole profiling pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 input=parser_sub.add_argument_group("Input options")
 group = input.add_mutually_exclusive_group(required=True)
 group.add_argument('--read1','-1',help='First read file')
 input.add_argument('--read2','-2',help='Second read file')
-
-input.add_argument('--db',default='ntm_db',help='Mutation panel name')
-input.add_argument('--external_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
+group.add_argument('--bam','-a',help='BAM file. Make sure it has been generated using the H37Rv genome (GCA_000195955.2)')
+input.add_argument('--platform','-m',choices=["illumina","nanopore"],default="illumina",help='NGS Platform used to generate data')
+input.add_argument('--species_db',default='ntmdb',help='Mutation panel name')
+input.add_argument('--external_species_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
 
 output=parser_sub.add_argument_group("Output options")
+output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
+output.add_argument('--dir','-d',default=".",help='Storage directory')
+output.add_argument('--csv',action="store_true",help="Add CSV output")
+output.add_argument('--txt',action="store_true",help="Add text output")
+output.add_argument('--add_columns',default=None,type=str,help=argparse.SUPPRESS)
 
-output.add_argument('--prefix','-p',default="ntm-profiler",help='Sample prefix for all results generated')
-parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+algorithm=parser_sub.add_argument_group("Algorithm options")
+algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
+
+other=parser_sub.add_argument_group("Other options")
+other.add_argument('--verbose','-v',default=0, choices=[0,1,2],help="Verbosity increases from 0 to 2",type=int)
+other.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
+other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 parser_sub.set_defaults(func=main_speciate)
 
 
-# Collate results #
-parser_sub = subparsers.add_parser('collate', help='Collate results form multiple samples together', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--outfile','-o',help='Output file name',required = True)
-parser_sub.add_argument('--samples',help='File with samples (one per line)')
-parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
-parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
-parser_sub.set_defaults(func=main_collate)
 
 # Update database #
 parser_sub = subparsers.add_parser('update_db', help='Collate results form multiple samples together', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -278,7 +364,7 @@ parser_sub = subparsers.add_parser('load_species_db', help='Generate the files r
 parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
 parser_sub.set_defaults(func=load_species_db)
 
-
+###### Profile #######
 parser_sub = subparsers.add_parser('profile', help='Run whole profiling pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 input=parser_sub.add_argument_group("Input options")
 group = input.add_mutually_exclusive_group(required=True)
@@ -326,7 +412,16 @@ other.add_argument('--delly_bcf',help=argparse.SUPPRESS)
 parser_sub.set_defaults(func=main_profile)
 
 
-
+parser_sub = subparsers.add_parser('collate', help='Collate results form multiple samples together', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--outfile','-o',default="ntmprofiler.collate.txt",help='Sample prefix')
+parser_sub.add_argument('--samples',help='File with samples (one per line)')
+parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--suffix',default=".results.json",type=str,help='File suffix')
+parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
+parser_sub.add_argument('--db',default='ntmdb',help='Full path to mutation database json file to use')
+parser_sub.add_argument('--external_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
+parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % tbp.__version__)
+parser_sub.set_defaults(func=main_collate)
 
 args = parser.parse_args()
 if vars(args)=={}:
