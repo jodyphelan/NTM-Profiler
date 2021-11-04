@@ -52,6 +52,8 @@ def create_species_db(args):
 
     shutil.copy(args.kmers,args.prefix+".kmers.txt")
     json.dump(version,open(args.prefix+".version.json","w"))
+    if args.load:
+        load_species_db(args)
 
 
 def load_species_db(args):

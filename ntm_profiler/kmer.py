@@ -3,7 +3,6 @@ from pathogenprofiler import run_cmd, revcom
 import statistics as stats
 from tqdm import tqdm
 from uuid import uuid4
-from .utils import log 
 
 def get_canonical_kmer(kmer):
     t = {"A":"1","C":"2","T":"3","G":"4"}

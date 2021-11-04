@@ -2,6 +2,7 @@
 import re
 import sys
 import argparse
+import uuid
 import ntm_profiler as ntmp
 import os
 import tbprofiler as tbp 
@@ -28,8 +29,10 @@ def cleanup():
             outfile = "%s.errlog" % args.prefix
         elif "vcf" in vars(args):
             outfile = "%s.errlog" % args.vcf.split("/")[-1]
-        else:
+        elif "outfile" in vars(args):
             outfile = "%s.errlog" % args.outfile
+        else:
+            outfile = "%s.errlog" % uuid4()
         with open(outfile, "w") as O:
             O.write("# tb-profiler error report\n\n")
             O.write("* OS: %s\n" % sys.platform)
@@ -49,7 +52,7 @@ def cleanup():
             O.write("```\n")
             O.write("%s" % sys.last_value)
             O.write("```\n")
-        sys.stderr.write("""\n
+        pp.errlog("""\n
 ################################# ERROR #######################################
 
 This run has failed. Please check all arguments and make sure all input files
@@ -207,10 +210,6 @@ def main_profile(args):
     results = ntmp.reformat(results,conf)
 
     
-
-
-
-
     
 
     json.dump(results,open(json_output,"w"))
@@ -221,6 +220,18 @@ def main_profile(args):
     if args.csv:
         ntmp.write_text(results,conf,csv_output,extra_columns)
 
+    ### Move files to respective directories ###
+    result_files = {
+        "%s.delly.bcf" % files_prefix: "%s/%s.delly.bcf" % (args.dir,args.prefix),
+        "%s.targets.csq.vcf.gz" % files_prefix: "%s/%s.targets.csq.vcf.gz" % (args.dir,args.prefix),
+        "%s.vcf.gz" % files_prefix: "%s/%s.vcf.gz" % (args.dir,args.prefix),
+        "%s.bam" % files_prefix: "%s/%s.bam" % (args.dir,args.prefix),
+        "%s.bam.bai" % files_prefix: "%s/%s.bam.bai" % (args.dir,args.prefix),
+    }
+
+    for file,target in result_files.items():
+        if os.path.isfile(file):
+            os.rename(file,target)
 
     pp.run_cmd(f"rm {files_prefix}*")
 
@@ -232,6 +243,8 @@ def load_species_db(args):
 
 def create_resistance_db(args):
     tbp.create_db(args)
+    if args.load:
+        load_resistance_db(args)
 
 def load_resistance_db(args):
     ntmp.load_resistance_db(args)
@@ -274,7 +287,7 @@ def main_speciate(args):
     if args.csv:
         ntmp.write_text(results,species_db,csv_output,sep=",")
 
-    sys.stderr.write("Profiling complete!\n")
+    pp.successlog("Profiling complete!")
 
 
 def main_collate(args):
@@ -282,10 +295,22 @@ def main_collate(args):
 
 
 def main_update_db(args):
-    import urllib.request
-    if ntmp.nofolder(sys.base_prefix+"/share/ntm_profiler"):
-        ntmp.run_cmd("mkdir %s " % (sys.base_prefix+"/share/ntm_profiler/"))
-    urllib.request.urlretrieve("https://raw.githubusercontent.com/jodyphelan/NTM-Profiler/main/db/ntm_db.kmers.txt",f"{sys.base_prefix}/share/ntm_profiler/ntm_db.kmers.txt")
+    if os.path.isdir('ntmdb'):
+        os.chdir('ntmdb')
+        pp.run_cmd('git pull')
+        os.chdir('db/')
+    else:
+        pp.run_cmd('git clone https://github.com/jodyphelan/ntmdb.git')
+        os.chdir('ntmdb/db/')
+    dirs = [d for d in os.listdir() if os.path.isdir(d)]
+    pp.infolog('\nCreating species DB')
+    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --kmers ntm_db.kmers.txt --load')
+    for d in dirs:
+        os.chdir(d)
+        for species in json.load(open('variables.json'))['species']:
+            pp.infolog(f'\nCreating DB for {species}')
+            pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv {d}.csv --load')
+        os.chdir('../')
 
 
 
@@ -295,75 +320,6 @@ parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',formatter_c
 parser.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 subparsers = parser.add_subparsers(help="Task to perform")
 
-parser_sub = subparsers.add_parser('speciate', help='Run whole profiling pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-input=parser_sub.add_argument_group("Input options")
-group = input.add_mutually_exclusive_group(required=True)
-group.add_argument('--read1','-1',help='First read file')
-input.add_argument('--read2','-2',help='Second read file')
-group.add_argument('--bam','-a',help='BAM file. Make sure it has been generated using the H37Rv genome (GCA_000195955.2)')
-input.add_argument('--platform','-m',choices=["illumina","nanopore"],default="illumina",help='NGS Platform used to generate data')
-input.add_argument('--species_db',default='ntmdb',help='Mutation panel name')
-input.add_argument('--external_species_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
-
-output=parser_sub.add_argument_group("Output options")
-output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
-output.add_argument('--dir','-d',default=".",help='Storage directory')
-output.add_argument('--csv',action="store_true",help="Add CSV output")
-output.add_argument('--txt',action="store_true",help="Add text output")
-output.add_argument('--add_columns',default=None,type=str,help=argparse.SUPPRESS)
-
-algorithm=parser_sub.add_argument_group("Algorithm options")
-algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
-
-other=parser_sub.add_argument_group("Other options")
-other.add_argument('--verbose','-v',default=0, choices=[0,1,2],help="Verbosity increases from 0 to 2",type=int)
-other.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
-other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
-parser_sub.set_defaults(func=main_speciate)
-
-
-
-# Update database #
-parser_sub = subparsers.add_parser('update_db', help='Collate results form multiple samples together', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
-parser_sub.set_defaults(func=main_update_db)
-
-
-
-
-
-
-
-
-parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
-parser_sub.add_argument('--csv','-c',type=str,help='The prefix for all output files',required = True)
-parser_sub.add_argument('--watchlist','-w',type=str,help='A csv file containing genes to profile but without any specific associated mutations')
-parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
-parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
-parser_sub.add_argument('--custom',action="store_true",help='Tells the script this is a custom database, this is used to alter the generation of the version file')
-parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
-parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
-parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
-parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
-parser_sub.set_defaults(func=create_resistance_db)
-
-parser_sub = subparsers.add_parser('load_resistance_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
-parser_sub.set_defaults(func=load_resistance_db)
-
-parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
-parser_sub.add_argument('--kmers',type=str,help='The prefix for all output files',required = True)
-parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
-parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
-parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
-parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
-parser_sub.set_defaults(func=create_species_db)
-
-parser_sub = subparsers.add_parser('load_species_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
-parser_sub.set_defaults(func=load_species_db)
 
 ###### Profile #######
 parser_sub = subparsers.add_parser('profile', help='Run whole profiling pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -423,6 +379,77 @@ parser_sub.add_argument('--db',default='ntmdb',help='Full path to mutation datab
 parser_sub.add_argument('--external_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
 parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % tbp.__version__)
 parser_sub.set_defaults(func=main_collate)
+
+parser_sub = subparsers.add_parser('speciate', help='Run whole profiling pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+input=parser_sub.add_argument_group("Input options")
+group = input.add_mutually_exclusive_group(required=True)
+group.add_argument('--read1','-1',help='First read file')
+input.add_argument('--read2','-2',help='Second read file')
+group.add_argument('--bam','-a',help='BAM file. Make sure it has been generated using the H37Rv genome (GCA_000195955.2)')
+input.add_argument('--platform','-m',choices=["illumina","nanopore"],default="illumina",help='NGS Platform used to generate data')
+input.add_argument('--species_db',default='ntmdb',help='Mutation panel name')
+input.add_argument('--external_species_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
+
+output=parser_sub.add_argument_group("Output options")
+output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
+output.add_argument('--dir','-d',default=".",help='Storage directory')
+output.add_argument('--csv',action="store_true",help="Add CSV output")
+output.add_argument('--txt',action="store_true",help="Add text output")
+output.add_argument('--add_columns',default=None,type=str,help=argparse.SUPPRESS)
+
+algorithm=parser_sub.add_argument_group("Algorithm options")
+algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
+
+other=parser_sub.add_argument_group("Other options")
+other.add_argument('--verbose','-v',default=0, choices=[0,1,2],help="Verbosity increases from 0 to 2",type=int)
+other.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
+other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
+parser_sub.set_defaults(func=main_speciate)
+
+
+
+# Update database #
+parser_sub = subparsers.add_parser('update_db', help='Collate results form multiple samples together', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.set_defaults(func=main_update_db)
+
+
+
+
+# Create resistance DB #
+parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
+parser_sub.add_argument('--csv','-c',type=str,help='The prefix for all output files',required = True)
+parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it',required = True)
+parser_sub.add_argument('--watchlist','-w',type=str,help='A csv file containing genes to profile but without any specific associated mutations')
+parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
+parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
+parser_sub.add_argument('--custom',action="store_true",help='Tells the script this is a custom database, this is used to alter the generation of the version file')
+parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
+parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
+parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
+parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
+parser_sub.set_defaults(func=create_resistance_db)
+
+parser_sub = subparsers.add_parser('load_resistance_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
+parser_sub.set_defaults(func=load_resistance_db)
+
+parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
+parser_sub.add_argument('--kmers',type=str,help='The prefix for all output files',required = True)
+parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it',required = True)
+parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
+parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
+parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
+parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
+parser_sub.set_defaults(func=create_species_db)
+
+parser_sub = subparsers.add_parser('load_species_db', help='Generate the files required to run TBProfiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
+parser_sub.set_defaults(func=load_species_db)
+
+
 
 args = parser.parse_args()
 if vars(args)=={}:
