@@ -41,3 +41,61 @@ Resistance prediction is performed by aligning the read data to a species-specif
 * _Mycobacteroides abscessus subsp. massiliense_
 
 If you would like to suggest another organism please leave a comment in [this thread](https://github.com/jodyphelan/NTM-Profiler/discussions/6).
+
+
+## Custom databases
+
+Custom databases can be generated for both species and resistance prediction. The simplest way is to get a copy of [ntmdb](https://github.com/jodyphelan/ntmdb) and modify to alter or add databases. 
+
+```
+git clone https://github.com/jodyphelan/ntmdb.git
+```
+
+### Species
+
+The species database consists of a two column tab delimited file with kmers and associated aspecies. To alter the current list of kmers you can modify the `db/ntm_db.kmers.txt`. After this, navigate to the `db` directory and create the database.
+
+```
+cd db
+ntm-profiler create_species_db --kmers ntm_db.kmers.txt --prefix ntmdb --load
+```
+
+The `--prefix` argument species the name of the database. `ntm-profiler` will automatically look for a database with the name **ntmdb** if no other is provided on the commandline, so it is a good idea to keep is like this. The `--load` parameter will lead to the library being automatically copied to the right locations so that `ntm-profiler` will be able to automatically detect it.
+
+### Resistance
+
+You can find an example of the files needed to create a resistance database by navigating to `db/Mycobacteroides_abscessus`. You will need a reference genome, gff file, a json file containing some variables and the mutations/drug associations stored in CSV format.
+
+```
+.
+├── Mycobacteroides_abscessus.csv
+├── genome.fasta
+├── genome.gff
+└── variables.json
+```
+
+The reference genome and gff giles should be named **genome.fasta** and **genome.gff** respectively. The **variables.json** file should at least contain the snpEff_database used by `ntm-profiler` to annotate mutations.
+
+```
+{
+    "snpEff_db":"Mycobacterium_abscessus_atcc_19977"
+}
+```
+
+The CSV file should contain the columns as shown in the example below. For more information on the format of this file see [here](https://github.com/jodyphelan/ntmdb).
+
+| Gene | Mutation  | Drug       | Confers    | Interaction | Literature                 |
+| ---- | --------- | ---------- | ---------- | ----------- | -------------------------- |
+| rrl  | n.2270A>C | macrolides | resistance |             | 10.1038/s41467-021-25484-9 |
+| rrl  | n.2270A>G | macrolides | resistance |             | 10.1038/s41467-021-25484-9 |
+
+Finally, after setting these files up you can create and load the database using the following command.
+
+```
+ntm-profiler create_resistance_db --csv myfile.csv --prefix myspecies 
+```
+
+As before you can add the `--load` to automate loading of the database. Some important points to keep in mind:
+
+* If you want ntm-profiler to automatically select the right database for resistance prediction after speciation, then the `--prefix` should match the desired species as it appears in the kmers file.
+* If you are planning to use `ntm-profiler` on bam files, it is important to use `--match_ref myref.fa` to match the chromosome names used in your alignment pipeline, as it might differ with the ones used in the github repo.
