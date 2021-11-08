@@ -11,6 +11,13 @@ Installation is available through conda:
 ```
 conda install -c bioconda ntm-profiler=0.1.1
 ```
+
+After installing, the relevand species and resistance databases can be downloaded by running:
+
+```
+ntm-profiler update_db
+```
+
 ## Running
 
 ### Predicting species
