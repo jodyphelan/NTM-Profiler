@@ -29,8 +29,8 @@ Species prediction is performed by looking for pre-detemined kmers in read files
 ### Resistance prediction
 Resistance prediction is performed by aligning the read data to a species-specific reference genome and looking for resistance associated genes and variants. The reference and resistance database is stored in the [ntmdb github repo](https://github.com/jodyphelan/ntmdb). At the moment resistance prediction is available for:
 
-* Mycobacteroides abscessus subsp. abscessus
-* Mycobacteroides abscessus subsp. bolletii
-* Mycobacteroides abscessus subsp. massiliense
+* _Mycobacteroides abscessus subsp. abscessus_
+* _Mycobacteroides abscessus subsp. bolletii_
+* _Mycobacteroides abscessus subsp. massiliense_
 
 If you would like to suggest another organism please leave a comment in [this thread](https://github.com/jodyphelan/NTM-Profiler/discussions/6).
