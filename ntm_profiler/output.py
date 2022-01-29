@@ -151,12 +151,14 @@ def collate(args):
     species = {}
     dr = defaultdict(lambda: defaultdict(list))
     drugs = set()
+    dr_samples = set()
     for s in tqdm(samples):
         # Data has the same structure as the .result.json files
         data = json.load(open(filecheck("%s/%s%s" % (args.dir,s,args.suffix))))
         species[s] = ";".join([d["species"] for d in data["species"]])
         
-        if "resistance_genes" in data:
+        if "resistance_db_version" in data:
+            dr_samples.add(s)
             for gene in data["resistance_genes"]:
                 for d in gene["drugs"]:
                     drugs.add(d["drug"])
@@ -172,9 +174,9 @@ def collate(args):
         result = {
             "id": s,
             "species": species[s]
-            }
+        }
         for d in sorted(drugs):
-            if s in dr:
+            if s in dr_samples:
                 if d in dr[s]:
                     result[d] = ";".join(dr[s][d])
                 else:
