@@ -2,9 +2,9 @@
 from collections import defaultdict
 import os
 from typing import DefaultDict
-from pathogenprofiler import filecheck
+from pathogenprofiler import filecheck, debug
 import csv
-import tbprofiler as tbp
+import pathogenprofiler as pp
 import time
 from tqdm import tqdm
 import json
@@ -88,21 +88,21 @@ Species Database version%(sep)s%(species_db_version)s
 def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="\t"):
     if "resistance_genes" not in json_results:
         return write_species_text(json_results,conf,outfile)
-    json_results = tbp.get_summary(json_results,conf,columns = columns,reporting_af=reporting_af)
+    json_results = pp.get_summary(json_results,conf,columns = columns,reporting_af=reporting_af)
     json_results["drug_table"] = [[y for y in json_results["drug_table"] if y["Drug"].upper()==d.upper()][0] for d in ["macrolides","amikacin"]]
     for var in json_results["dr_variants"]:
         var["drug"] = ", ".join([d["drug"] for d in var["drugs"]])
     text_strings = {}
     text_strings["id"] = json_results["id"]
     text_strings["date"] = time.ctime()
-    text_strings["species_report"] = tbp.dict_list2text(json_results["species"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
-    text_strings["dr_report"] = tbp.dict_list2text(json_results["drug_table"],["Drug","Genotypic Resistance","Mutations"]+columns if columns else [],sep=sep)
-    text_strings["dr_genes_report"] = tbp.dict_list2text(json_results["resistance_genes"],["locus_tag","gene","type","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
-    text_strings["dr_var_report"] = tbp.dict_list2text(json_results["dr_variants"],["genome_pos","locus_tag","gene","change","type","freq","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
-    text_strings["other_var_report"] = tbp.dict_list2text(json_results["other_variants"],["genome_pos","locus_tag","gene","change","type","freq"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction"},sep=sep)
-    text_strings["coverage_report"] = tbp.dict_list2text(json_results["qc"]["gene_coverage"], ["gene","locus_tag","cutoff","fraction"],sep=sep) if "gene_coverage" in json_results["qc"] else "NA"
-    text_strings["missing_report"] = tbp.dict_list2text(json_results["qc"]["missing_positions"],["gene","locus_tag","position","position_type","drug_resistance_position"],sep=sep) if "gene_coverage" in json_results["qc"] else "NA"
-    text_strings["pipeline"] = tbp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
+    text_strings["species_report"] = pp.dict_list2text(json_results["species"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
+    text_strings["dr_report"] = pp.dict_list2text(json_results["drug_table"],["Drug","Genotypic Resistance","Mutations"]+columns if columns else [],sep=sep)
+    text_strings["dr_genes_report"] = pp.dict_list2text(json_results["resistance_genes"],["locus_tag","gene","type","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
+    text_strings["dr_var_report"] = pp.dict_list2text(json_results["dr_variants"],["genome_pos","locus_tag","gene","change","type","freq","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
+    text_strings["other_var_report"] = pp.dict_list2text(json_results["other_variants"],["genome_pos","locus_tag","gene","change","type","freq"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction"},sep=sep)
+    text_strings["coverage_report"] = pp.dict_list2text(json_results["qc"]["gene_coverage"], ["gene","locus_tag","cutoff","fraction"],sep=sep) if "gene_coverage" in json_results["qc"] else "NA"
+    text_strings["missing_report"] = pp.dict_list2text(json_results["qc"]["missing_positions"],["gene","locus_tag","position","position_type","drug_resistance_position"],sep=sep) if "gene_coverage" in json_results["qc"] else "NA"
+    text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
     tmp = json_results["species_db_version"]
     text_strings["species_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % tmp
@@ -122,8 +122,8 @@ def write_species_text(json_results,conf,outfile,sep="\t"):
     text_strings = {}
     text_strings["id"] = json_results["id"]
     text_strings["date"] = time.ctime()
-    text_strings["species_report"] = tbp.dict_list2text(json_results["species"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
-    text_strings["pipeline"] = tbp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
+    text_strings["species_report"] = pp.dict_list2text(json_results["species"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
+    text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
     tmp = json_results["species_db_version"]
     text_strings["species_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % tmp

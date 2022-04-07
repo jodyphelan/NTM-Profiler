@@ -5,23 +5,20 @@ import argparse
 import uuid
 import ntm_profiler as ntmp
 import os
-import tbprofiler as tbp 
 import pathogenprofiler as pp
 from uuid import uuid4
 import json
 import glob
 import atexit
 
+__softwarename__ = "ntm-profiler"
 
-
-files_prefix = None
-conf = None
 @atexit.register
 def cleanup():
     if "last_traceback" in vars(sys):
-        if files_prefix and not args.no_cleanup:
+        if args.files_prefix and not args.no_clean:
             sys.stderr.write("Cleaning up after failed run\n")
-            for f in glob.glob(files_prefix+"*"):
+            for f in glob.glob(args.files_prefix+"*"):
                 os.remove(f)
         import traceback
         
@@ -36,8 +33,8 @@ def cleanup():
         with open(outfile, "w") as O:
             O.write("# tb-profiler error report\n\n")
             O.write("* OS: %s\n" % sys.platform)
-            O.write("* Program version: %s\n" % tbp.__version__)
-            O.write("* Database version: %s\n" % json.load(open(conf["version"]))["commit"]) if conf else ""
+            O.write("* Program version: %s\n" % ntmp.__version__)
+            O.write("* Database version: %s\n" % json.load(open(args.conf["version"]))["commit"]) if "conf" in vars(args) else ""
             O.write("* Program call:\n")
             O.write("```\n")
             O.write("%s\n" % vars(args))
@@ -57,7 +54,7 @@ def cleanup():
 
 This run has failed. Please check all arguments and make sure all input files
 exist. If no solution is found, please open up an issue at
-https://github.com/jodyphelan/TBProfiler/issues/new and paste or attach the
+https://github.com/jodyphelan/NTM-Profiler/issues/new and paste or attach the
 contents of the error log (%s)
 
 ###############################################################################
@@ -83,33 +80,29 @@ def main_profile(args):
     extra_columns = [x.lower() for x in args.add_columns.split(",")] if args.add_columns else []
 
     if args.external_species_db:
-        species_db = ntmp.get_species_db(args.external_species_db)
+        species_db = pp.get_species_db(args.software_name,args.external_species_db)
     else:
-        species_db = ntmp.get_species_db(args.species_db)
+        species_db = pp.get_species_db(args.software_name,args.species_db)
 
     
 
     if not args.no_species:
         ### Run profiling module from pathogen-profiler ###
-        if args.bam==None:
-            species_prediction = ntmp.check_for_kmers(species_db["kmers"],args.read1,args.read2,threads=args.threads)
-        else:
-            pp.run_cmd(f"samtools fastq {args.bam} > {files_prefix}.fq")
-            species_prediction = ntmp.check_for_kmers(species_db["kmers"],files_prefix+".fq",threads=args.threads)
+        species_prediction = pp.speciate(args)
     else:
         species_prediction = {}
 
 
-    global conf
     results = {"id":args.prefix,"species": species_prediction}
     results['software_version'] = ntmp.__version__
-    results['pipeline_software'] = [{"Analysis":"Kmer counting","Program":"dsk"}]
+    results['pipeline_software'] = [{"Analysis":"Kmer counting","Program":"kmc"}]
     results['species_db_version'] = json.load(open(species_db["version"]))
+
     if not args.external_resistance_db and not args.resistance_db:
         if len(species_prediction)==1:
             sys.stderr.write("No resistance database was specified. Attempting to use database based on species prediction...\n")
             db_name = species_prediction[0]["species"].replace(" ","_")
-            conf = ntmp.get_resistance_db(db_name,fcheck=False)
+            conf = pp.get_resistance_db(args.software_name,db_name)
         if len(species_prediction)>1 or len(species_prediction)==0 or not os.path.isfile(conf["ref"]):
             if len(species_prediction)>1:
                 sys.stderr.write(f"Multiple species found.\n")
@@ -128,11 +121,12 @@ def main_profile(args):
 
             sys.stderr.write("Profiling complete!\n")
             quit(0)
-        conf = ntmp.get_resistance_db(db_name)
+        conf = pp.get_resistance_db(args.software_name,db_name)
     elif args.external_resistance_db:
-        conf = ntmp.get_resistance_db(args.external_resistance_db)
+        conf = pp.get_resistance_db(args.software_name,args.external_resistance_db)
     elif args.resistance_db:
-        conf = ntmp.get_resistance_db(args.resistance_db)
+        conf = pp.get_resistance_db(args.software_name,args.resistance_db)
+    args.conf = conf
 
 
 
@@ -151,40 +145,8 @@ def main_profile(args):
             run_delly = True
 
     
-
-    ### Create bam file if fastq has been supplied ###
-    if args.bam==None:
-        if args.read1 and args.read2 and args.no_trim:
-            # Paired + no trimming
-            fastq_obj = pp.fastq(args.read1,args.read2)
-        elif args.read1 and args.read2 and not args.no_trim:
-            # Paired + trimming
-            untrimmed_fastq_obj = pp.fastq(args.read1,args.read2)
-            fastq_obj = untrimmed_fastq_obj.trim(files_prefix,threads=args.threads)
-        elif args.read1 and not args.read2 and args.no_trim:
-            # Unpaired + trimming
-            fastq_obj = pp.fastq(args.read1,args.read2)
-        elif args.read1 and not args.read2 and not args.no_trim:
-            # Unpaired + trimming
-            untrimmed_fastq_obj = pp.fastq(args.read1)
-            fastq_obj = untrimmed_fastq_obj.trim(files_prefix,threads=args.threads)
-        else:
-            exit("\nPlease provide a bam file or a fastq file(s)...Exiting!\n")
-        bam_obj = fastq_obj.map_to_ref(
-            ref_file=conf["ref"], prefix=files_prefix,sample_name=args.prefix,
-            aligner=args.mapper, platform=args.platform, threads=args.threads
-        )
-        bam_file = bam_obj.bam_file
-    else:
-        bam_file = args.bam
-
-    if not args.missing_cov_threshold:
-        args.missing_cov_threshold = args.min_depth
-    else:
-        sys.stderr.write("\nWARNING: The --missing_cov_threshold argument is deprecated and will be removed in future releases. This parameter can now be set with --min_depth.\n")
-
-
-   
+    bam_file = pp.get_bam_file(args)
+    args.missing_cov_threshold = args.min_depth
 
     results.update(pp.bam_profiler(
         conf=conf, bam_file=bam_file, prefix=files_prefix, platform=args.platform,
@@ -236,18 +198,16 @@ def main_profile(args):
     pp.run_cmd(f"rm {files_prefix}*")
 
 def create_species_db(args):
-    ntmp.create_species_db(args)
+    pp.create_species_db(args)
 
-def load_species_db(args):
-    ntmp.load_species_db(args)
+# def load_species_db(args):
+#     ntmp.load_species_db(args)
 
 def create_resistance_db(args):
-    tbp.create_db(args)
-    if args.load:
-        load_resistance_db(args)
+    pp.create_db(args,extra_files=[])
 
-def load_resistance_db(args):
-    ntmp.load_resistance_db(args)
+# def load_resistance_db(args):
+#     ntmp.load_resistance_db(args)
 
 
 def main_speciate(args):
@@ -318,6 +278,7 @@ def main_update_db(args):
 
 parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser.add_argument('--no_clean', action='store_true', help=argparse.SUPPRESS)
 subparsers = parser.add_subparsers(help="Task to perform")
 
 
@@ -363,7 +324,7 @@ algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int
 
 other=parser_sub.add_argument_group("Other options")
 other.add_argument('--verbose','-v',default=0, choices=[0,1,2],help="Verbosity increases from 0 to 2",type=int)
-other.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
+other.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
 parser_sub.set_defaults(func=main_profile)
@@ -375,7 +336,7 @@ parser_sub.add_argument('--samples',help='File with samples (one per line)')
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
-parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % tbp.__version__)
+parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.set_defaults(func=main_collate)
 
 parser_sub = subparsers.add_parser('speciate', help='Run speciation pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -409,6 +370,7 @@ parser_sub.set_defaults(func=main_speciate)
 # Update database #
 parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.set_defaults(func=main_update_db)
 
 
@@ -418,7 +380,7 @@ parser_sub.set_defaults(func=main_update_db)
 parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the files required to run resistance profiling with NTM-Profiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database (match species name for automated speciation+resistance detection)',required = True)
 parser_sub.add_argument('--csv','-c',type=str,help='The CSV file containing mutations',required = True)
-parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it',required = True)
+parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
 parser_sub.add_argument('--watchlist','-w',type=str,help='A csv file containing genes to profile but without any specific associated mutations')
 parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
@@ -429,12 +391,13 @@ parser_sub.add_argument('--db-author',help='Overrides the author of the database
 parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
 parser_sub.add_argument('--include_original_mutation',action="store_true", help='Include the original mutation (before reformatting) as part of the variant annotaion')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.set_defaults(func=create_resistance_db)
 
-parser_sub = subparsers.add_parser('load_resistance_db', help='Load the resistance database files', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
-parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
-parser_sub.set_defaults(func=load_resistance_db)
+# parser_sub = subparsers.add_parser('load_resistance_db', help='Load the resistance database files', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# parser_sub.add_argument('--prefix','-p',type=str,help='The input CSV file containing the mutations',required = True)
+# parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+# parser_sub.set_defaults(func=load_resistance_db)
 
 parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run speciation with NTM-Profiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
@@ -445,17 +408,22 @@ parser_sub.add_argument('--db-commit',help='Overrides the commit string of the d
 parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
 parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.set_defaults(func=create_species_db)
 
-parser_sub = subparsers.add_parser('load_species_db', help='Load the species database files', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
-parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
-parser_sub.set_defaults(func=load_species_db)
+# parser_sub = subparsers.add_parser('load_species_db', help='Load the species database files', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
+# parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+# parser_sub.set_defaults(func=load_species_db)
 
 
 
 args = parser.parse_args()
-if vars(args)=={}:
-    parser.print_help(sys.stderr)
-else:
+if hasattr(args, 'func'):
+    args.software_name = __softwarename__
+    args.tmp_prefix = str(uuid4())
+    args.files_prefix = args.dir+"/"+args.tmp_prefix
+
     args.func(args)
+else:
+    parser.print_help(sys.stderr)
