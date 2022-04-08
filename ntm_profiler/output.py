@@ -89,7 +89,7 @@ def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="
     if "resistance_genes" not in json_results:
         return write_species_text(json_results,conf,outfile)
     json_results = pp.get_summary(json_results,conf,columns = columns,reporting_af=reporting_af)
-    json_results["drug_table"] = [[y for y in json_results["drug_table"] if y["Drug"].upper()==d.upper()][0] for d in ["macrolides","amikacin"]]
+    json_results["drug_table"] = [[y for y in json_results["drug_table"] if y["Drug"].upper()==d.upper()][0] for d in conf["drugs"]]
     for var in json_results["dr_variants"]:
         var["drug"] = ", ".join([d["drug"] for d in var["drugs"]])
     text_strings = {}
