@@ -269,7 +269,7 @@ def main_update_db(args):
         os.chdir(d)
         for species in json.load(open('variables.json'))['species']:
             pp.infolog(f'\nCreating DB for {species}')
-            pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv {d}.csv --load')
+            pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv resistance_variants.csv --load')
         os.chdir('../')
 
 
