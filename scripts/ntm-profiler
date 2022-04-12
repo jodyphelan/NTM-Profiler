@@ -68,11 +68,6 @@ def main_profile(args):
     if pp.nofolder(args.dir):
         os.mkdir(args.dir)
 
-    ### Setup prefix for files ###
-    global files_prefix
-    args.tmp_prefix = str(uuid4())
-    files_prefix = args.dir+"/"+args.tmp_prefix
-
     json_output = args.dir+"/"+args.prefix+".results.json"
     text_output = args.dir+"/"+args.prefix+".results.txt"
     csv_output = args.dir+"/"+args.prefix+".results.csv"
@@ -159,9 +154,8 @@ def main_profile(args):
     ))
 
 
-    resistance_genes = ntmp.test_resistance_genes(conf,results)
+    results["resistance_genes"] = ntmp.test_resistance_genes(conf,results)
     
-    results["resistance_genes"] = resistance_genes
 
     results["pipeline_software"].extend([
         {"Analysis":"Mapping","Program": args.mapper if not args.bam else "N/A"},
@@ -200,14 +194,8 @@ def main_profile(args):
 def create_species_db(args):
     pp.create_species_db(args)
 
-# def load_species_db(args):
-#     ntmp.load_species_db(args)
-
 def create_resistance_db(args):
     pp.create_db(args,extra_files=[])
-
-# def load_resistance_db(args):
-#     ntmp.load_resistance_db(args)
 
 
 def main_speciate(args):
@@ -249,6 +237,41 @@ def main_speciate(args):
 
     pp.successlog("Profiling complete!")
 
+
+def main_fasta_profile(args):
+    if not args.no_species:
+        ### Run profiling module from pathogen-profiler ###
+        species_prediction = pp.speciate(args)
+    else:
+        species_prediction = {}
+
+    results = {"id":args.prefix,"species":species_prediction}
+    results['software_version'] = ntmp.__version__
+    results['pipeline_software'] = []
+    conf = pp.get_resistance_db(args.software_name,args.resistance_db)
+    results.update(pp.fasta_profiler(conf=conf,prefix=args.prefix,filename=args.fasta))
+    results["resistance_genes"] = ntmp.test_resistance_genes(conf,results)
+
+    results["pipeline_software"].extend([
+        {"Analysis":"Variant calling","Program":args.caller}
+    ])
+    results["resistance_db_version"] = json.load(open(conf["version"]))
+
+    results = ntmp.reformat(results,conf)
+    
+    pp.debug(results)
+
+
+    json_output = args.dir+"/"+args.prefix+".results.json"
+    text_output = args.dir+"/"+args.prefix+".results.txt"
+    csv_output = args.dir+"/"+args.prefix+".results.csv"
+
+    extra_columns = []
+    json.dump(results,open(json_output,"w"))
+    if args.txt:
+        ntmp.write_text(results,conf,text_output,extra_columns)
+    if args.csv:
+        ntmp.write_text(results,conf,csv_output,extra_columns)
 
 def main_collate(args):
     ntmp.collate(args)
@@ -300,7 +323,7 @@ output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix fo
 output.add_argument('--dir','-d',default=".",help='Storage directory')
 output.add_argument('--csv',action="store_true",help="Add CSV output")
 output.add_argument('--txt',action="store_true",help="Add text output")
-output.add_argument('--pdf',action="store_true",help="Add PDF output. This requires pdflatex to be installed")
+# output.add_argument('--pdf',action="store_true",help="Add PDF output. This requires pdflatex to be installed")
 output.add_argument('--add_columns',default=None,type=str,help="Add additional columns found in the mutation database to the text and csv results")
 output.add_argument('--add_mutation_metadata',action="store_true",help=argparse.SUPPRESS)
 output.add_argument('--call_whole_genome',action="store_true",help="Call whole genome")
@@ -415,6 +438,24 @@ parser_sub.set_defaults(func=create_species_db)
 # parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
 # parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 # parser_sub.set_defaults(func=load_species_db)
+
+
+parser_sub = subparsers.add_parser('fasta_profile', help='Run whole profiling pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--fasta','-f',help='First read file')
+parser_sub.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
+parser_sub.add_argument('--resistance_db',help='Mutation panel name')
+parser_sub.add_argument('--external_resistance_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
+parser_sub.add_argument('--species_db',default='ntmdb',help='Mutation panel name')
+parser_sub.add_argument('--external_species_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
+parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--caller',default="paftools.js", choices=["paftools.js"],help="Variant calling tool to use.",type=str)
+parser_sub.add_argument('--csv',action="store_true",help="Add CSV output")
+parser_sub.add_argument('--txt',action="store_true",help="Add text output")
+parser_sub.add_argument('--no_species',action="store_true",help=argparse.SUPPRESS)
+
+parser_sub.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
+parser_sub.set_defaults(func=main_fasta_profile)
+
 
 
 

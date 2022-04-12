@@ -11,7 +11,7 @@ import json
 
 
 def load_text(text_strings):
-        return r"""
+    text = """
 NTM-Profiler report
 =================
 
@@ -21,19 +21,26 @@ Summary
 -------
 ID%(sep)s%(id)s
 Date%(sep)s%(date)s
-
+""" % text_strings
+    if "species_report" in text_strings:
+        text+="""
 Species report
 -----------------
 %(species_report)s
-
+""" % text_strings
+    if "dr_report" in text_strings:
+        text+="""
 Resistance report
 -----------------
 %(dr_report)s
-
+""" % text_strings
+    if "dr_genes_report" in text_strings:
+        text+="""
 Resistance genes report
 -----------------
 %(dr_genes_report)s
-
+""" % text_strings
+    text += """
 Resistance variants report
 -----------------
 %(dr_var_report)s
@@ -58,7 +65,7 @@ Resistance Database version%(sep)s%(resistance_db_version)s
 
 %(pipeline)s
 """ % text_strings
-
+    return text
 
 def load_species_text(text_strings):
         return r"""
@@ -100,14 +107,12 @@ def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="
     text_strings["dr_genes_report"] = pp.dict_list2text(json_results["resistance_genes"],["locus_tag","gene","type","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
     text_strings["dr_var_report"] = pp.dict_list2text(json_results["dr_variants"],["genome_pos","locus_tag","gene","change","type","freq","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
     text_strings["other_var_report"] = pp.dict_list2text(json_results["other_variants"],["genome_pos","locus_tag","gene","change","type","freq"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction"},sep=sep)
-    text_strings["coverage_report"] = pp.dict_list2text(json_results["qc"]["gene_coverage"], ["gene","locus_tag","cutoff","fraction"],sep=sep) if "gene_coverage" in json_results["qc"] else "NA"
-    text_strings["missing_report"] = pp.dict_list2text(json_results["qc"]["missing_positions"],["gene","locus_tag","position","position_type","drug_resistance_position"],sep=sep) if "gene_coverage" in json_results["qc"] else "NA"
+    text_strings["coverage_report"] = pp.dict_list2text(json_results["qc"]["gene_coverage"], ["gene","locus_tag","cutoff","fraction"],sep=sep) if "gene_coverage" in json_results["qc"] else "N/A"
+    text_strings["missing_report"] = pp.dict_list2text(json_results["qc"]["missing_positions"],["gene","locus_tag","position","position_type","drug_resistance_position"],sep=sep) if "gene_coverage" in json_results["qc"] else "N/A"
     text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
-    tmp = json_results["species_db_version"]
-    text_strings["species_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % tmp
-    tmp = json_results["resistance_db_version"]
-    text_strings["resistance_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % tmp
+    text_strings["species_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % json_results["species_db_version"] if "species_db_version" in json_results else "N/A"
+    text_strings["resistance_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % json_results["resistance_db_version"] if "resistance_db_version" in json_results else "N/A"
     if sep=="\t":
         text_strings["sep"] = ": "
     else:
