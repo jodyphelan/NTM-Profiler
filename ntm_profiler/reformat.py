@@ -16,6 +16,7 @@ def reformat(results,conf):
 
     if "gene_coverage" in results["qc"]:
         results["qc"]["gene_coverage"] = pp.dict_list_add_genes(results["qc"]["gene_coverage"],conf)
+    if "missing_positions" in results["qc"]:
         results["qc"]["missing_positions"] = pp.reformat_missing_genome_pos(results["qc"]["missing_positions"],conf)
     
     return results
