@@ -124,29 +124,14 @@ def main_profile(args):
     args.conf = conf
 
 
-
-
-    ### Set up platform dependant parameters ###
-    if args.platform=="nanopore":
-        args.mapper = "minimap2"
-        if args.caller=="gatk":
-            args.caller = "freebayes"
-        args.no_trim=True
-        run_delly = False
-    else:
-        if args.no_delly:
-            run_delly = False
-        else:
-            run_delly = True
-
-    
+    args = pp.set_platform_params(args)
     bam_file = pp.get_bam_file(args)
     args.missing_cov_threshold = args.min_depth
 
     results.update(pp.bam_profiler(
-        conf=conf, bam_file=bam_file, prefix=files_prefix, platform=args.platform,
+        conf=conf, bam_file=bam_file, prefix=args.files_prefix, platform=args.platform,
         caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
-        run_delly = run_delly, calling_params=args.calling_params,
+        run_delly = args.run_delly, calling_params=args.calling_params,
         coverage_fraction_threshold=args.coverage_fraction_threshold,
         missing_cov_threshold=args.missing_cov_threshold, samclip=args.no_clip,
         min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,call_wg=args.call_whole_genome,
@@ -169,8 +154,6 @@ def main_profile(args):
     
 
     json.dump(results,open(json_output,"w"))
-    if args.pdf:
-        ntmp.write_pdf(results,conf,pdf_output)
     if args.txt:
         ntmp.write_text(results,conf,text_output,extra_columns,reporting_af=args.reporting_af)
     if args.csv:
@@ -178,18 +161,18 @@ def main_profile(args):
 
     ### Move files to respective directories ###
     result_files = {
-        "%s.delly.bcf" % files_prefix: "%s/%s.delly.bcf" % (args.dir,args.prefix),
-        "%s.targets.csq.vcf.gz" % files_prefix: "%s/%s.targets.csq.vcf.gz" % (args.dir,args.prefix),
-        "%s.vcf.gz" % files_prefix: "%s/%s.vcf.gz" % (args.dir,args.prefix),
-        "%s.bam" % files_prefix: "%s/%s.bam" % (args.dir,args.prefix),
-        "%s.bam.bai" % files_prefix: "%s/%s.bam.bai" % (args.dir,args.prefix),
+        "%s.delly.bcf" % args.files_prefix: "%s/%s.delly.bcf" % (args.dir,args.prefix),
+        "%s.targets.csq.vcf.gz" % args.files_prefix: "%s/%s.targets.csq.vcf.gz" % (args.dir,args.prefix),
+        "%s.vcf.gz" % args.files_prefix: "%s/%s.vcf.gz" % (args.dir,args.prefix),
+        "%s.bam" % args.files_prefix: "%s/%s.bam" % (args.dir,args.prefix),
+        "%s.bam.bai" % args.files_prefix: "%s/%s.bam.bai" % (args.dir,args.prefix),
     }
 
     for file,target in result_files.items():
         if os.path.isfile(file):
             os.rename(file,target)
 
-    pp.run_cmd(f"rm {files_prefix}*")
+    pp.run_cmd(f"rm {args.files_prefix}*")
 
 def create_species_db(args):
     pp.create_species_db(args)
@@ -204,9 +187,6 @@ def main_speciate(args):
         os.mkdir(args.dir)
 
     ### Setup prefix for files ###
-    global files_prefix
-    args.tmp_prefix = str(uuid4())
-    files_prefix = args.dir+"/"+args.tmp_prefix
 
     json_output = args.dir+"/"+args.prefix+".results.json"
     text_output = args.dir+"/"+args.prefix+".results.txt"
@@ -221,8 +201,8 @@ def main_speciate(args):
     if args.bam==None:
         species_prediction = ntmp.check_for_kmers(species_db["kmers"],args.read1,args.read2,threads=args.threads)
     else:
-        pp.run_cmd(f"samtools fastq {args.bam} > {files_prefix}.fq")
-        species_prediction = ntmp.check_for_kmers(species_db["kmers"],files_prefix+".fq",threads=args.threads)
+        pp.run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.fq")
+        species_prediction = ntmp.check_for_kmers(species_db["kmers"],args.files_prefix+".fq",threads=args.threads)
 
     results = {"id":args.prefix,"species": species_prediction}
     results['software_version'] = ntmp.__version__
@@ -258,8 +238,6 @@ def main_fasta_profile(args):
     results["resistance_db_version"] = json.load(open(conf["version"]))
 
     results = ntmp.reformat(results,conf)
-    
-    pp.debug(results)
 
 
     json_output = args.dir+"/"+args.prefix+".results.json"
