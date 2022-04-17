@@ -1,8 +1,6 @@
 #! /usr/bin/env python3
-import re
 import sys
 import argparse
-import uuid
 import ntm_profiler as ntmp
 import os
 import pathogenprofiler as pp
@@ -31,7 +29,7 @@ def cleanup():
         else:
             outfile = "%s.errlog" % uuid4()
         with open(outfile, "w") as O:
-            O.write("# tb-profiler error report\n\n")
+            O.write("# ntm-profiler error report\n\n")
             O.write("* OS: %s\n" % sys.platform)
             O.write("* Program version: %s\n" % ntmp.__version__)
             O.write("* Database version: %s\n" % json.load(open(args.conf["version"]))["commit"]) if "conf" in vars(args) else ""
@@ -71,7 +69,6 @@ def main_profile(args):
     json_output = args.dir+"/"+args.prefix+".results.json"
     text_output = args.dir+"/"+args.prefix+".results.txt"
     csv_output = args.dir+"/"+args.prefix+".results.csv"
-    pdf_output = args.dir+"/"+args.prefix+".results.pdf"
     extra_columns = [x.lower() for x in args.add_columns.split(",")] if args.add_columns else []
 
     if args.external_species_db:
@@ -211,9 +208,9 @@ def main_speciate(args):
 
     json.dump(results,open(json_output,"w"))
     if args.txt:
-        ntmp.write_text(results,species_db,text_output,sep="\t")
+        ntmp.write_text(results,species_db,text_output,extra_columns,sep="\t")
     if args.csv:
-        ntmp.write_text(results,species_db,csv_output,sep=",")
+        ntmp.write_text(results,species_db,csv_output,extra_columns,sep=",")
 
     pp.successlog("Profiling complete!")
 
@@ -250,6 +247,9 @@ def main_fasta_profile(args):
         ntmp.write_text(results,conf,text_output,extra_columns)
     if args.csv:
         ntmp.write_text(results,conf,csv_output,extra_columns)
+
+    pp.run_cmd(f"rm {args.files_prefix}*")
+
 
 def main_collate(args):
     ntmp.collate(args)
