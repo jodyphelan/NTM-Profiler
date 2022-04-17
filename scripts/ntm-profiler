@@ -251,6 +251,9 @@ def main_fasta_profile(args):
     if args.csv:
         ntmp.write_text(results,conf,csv_output,extra_columns)
 
+    pp.run_cmd(f"rm {args.files_prefix}*")
+
+    
 def main_collate(args):
     ntmp.collate(args)
 
