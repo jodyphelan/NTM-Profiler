@@ -97,6 +97,7 @@ def main_profile(args):
     if args.species_only:
         args.conf = None
         ntmp.write_outputs(args,results)
+        pp.run_cmd(f"rm {args.files_prefix}*")
         pp.successlog("Species prediction finished!")
         quit(0)
 
