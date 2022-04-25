@@ -2,7 +2,7 @@
 from collections import defaultdict
 import os
 from typing import DefaultDict
-from pathogenprofiler import filecheck, debug
+from pathogenprofiler import filecheck, debug, infolog
 import csv
 import pathogenprofiler as pp
 import time
@@ -10,14 +10,19 @@ from tqdm import tqdm
 import json
 
 def write_outputs(args,results):
+    infolog("\nWriting outputs")
+    infolog("---------------")
     json_output = args.dir+"/"+args.prefix+".results.json"
     text_output = args.dir+"/"+args.prefix+".results.txt"
     csv_output = args.dir+"/"+args.prefix+".results.csv"
     extra_columns = [x.lower() for x in args.add_columns.split(",")] if args.add_columns else []
+    infolog(f"Writing json file: {json_output}")
     json.dump(results,open(json_output,"w"))
     if args.txt:
+        infolog(f"Writing text file: {text_output}")
         write_text(results,args.conf,text_output,extra_columns,reporting_af=args.reporting_af)
     if args.csv:
+        infolog(f"Writing csv file: {csv_output}")
         write_text(results,args.conf,csv_output,extra_columns)
 
         
