@@ -1,5 +1,6 @@
 import sys
 import json
+from uuid import uuid4
 import pathogenprofiler as pp
 
 def infolog(x):
@@ -36,3 +37,34 @@ def test_resistance_genes(conf,results):
         }
         results.append(res)
     return results
+
+
+def get_mash_hit(args):
+    args.species_conf = pp.get_db(args.software_name,args.species_db)
+    db_info = pp.parse_csv(args.species_conf["mash_db_info"])
+    if args.read1:
+        if args.read2:
+            pp.run_cmd("cat {args.read1} {args.read2} > {args.files_prefix}.fq.gz")
+            reads = f"{args.files_prefix}.fq.gz"
+        else:
+            reads = args.read1
+        pp.run_cmd(f"mash dist -m 2 {args.species_conf['mash_db']} {reads} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
+    elif args.fasta:
+        pp.run_cmd(f"mash dist {args.species_conf['mash_db']} {args.fasta} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
+
+    result =  {
+        "prediction_method":"mash",
+        "prediction":[],
+        "species_db_version":args.species_conf["version"]
+    }
+    for l in open(f"{args.files_prefix}.mash_dist.txt"):
+        row = l.strip().split()
+        acc = row[0].replace("db/","").replace(".fa","")
+        species = db_info[acc]["species"]
+        result["prediction"].append({
+            "accession":acc,
+            "species":species,
+            "mash-ANI":1-float(row[2])
+        })
+    
+    return result

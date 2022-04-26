@@ -31,8 +31,9 @@ def cleanup():
         with open(outfile, "w") as O:
             O.write("# ntm-profiler error report\n\n")
             O.write("* OS: %s\n" % sys.platform)
-            O.write("* Program version: %s\n" % ntmp.__version__)
-            O.write("* Database version: %s\n" % json.load(open(args.conf["version"]))["commit"]) if "conf" in vars(args) else ""
+            O.write("* ntm-profiler version: %s\n" % ntmp.__version__)
+            O.write("* pathogen-profiler version: %s\n" % pp.__version__)
+            O.write("* Database version: %s\n" % args.conf["version"]["commit"]) if "conf" in vars(args) else ""
             O.write("* Program call:\n")
             O.write("```\n")
             O.write("%s\n" % vars(args))
@@ -104,7 +105,10 @@ def main_profile(args):
 
     args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     if args.conf is None:
+        mash_prediction = ntmp.get_mash_hit(args)
+        results["mash_closest_species"] = mash_prediction
         ntmp.write_outputs(args,results)
+
         quit(0)
     
     args = pp.set_platform_params(args)
@@ -148,10 +152,14 @@ def main_profile(args):
 
 
 def create_species_db(args):
-    pp.create_species_db(args)
+    extra_files = {
+        "mash_db":args.mash_db,
+        "mash_db_info":args.mash_db_info
+    }
+    pp.create_species_db(args,extra_files = extra_files)
 
 def create_resistance_db(args):
-    pp.create_db(args,extra_files=[])
+    pp.create_db(args)
 
 
 def main_collate(args):
@@ -226,6 +234,7 @@ algorithm.add_argument('--no_flagstat',action="store_true",help="Don't collect f
 algorithm.add_argument('--no_clip',action="store_false",help="Don't clip reads")
 algorithm.add_argument('--no_delly',action="store_true",help="Don't run delly")
 algorithm.add_argument('--no_species',action="store_true",help=argparse.SUPPRESS)
+algorithm.add_argument('--mash',action="store_true",help="Don't run delly")
 algorithm.add_argument('--output_kmer_counts',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--add_variant_annotations',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
@@ -288,7 +297,9 @@ parser_sub.set_defaults(func=create_resistance_db)
 parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run speciation with NTM-Profiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
 parser_sub.add_argument('--kmers',type=str,help='The file containing species specific kmers',required = True)
-parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it',required = True)
+parser_sub.add_argument('--mash_db',type=str,help='The file containing species specific kmers',required = True)
+parser_sub.add_argument('--mash_db_info',type=str,help='The file containing species specific kmers',required = True)
+parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
 parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
 parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
 parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')

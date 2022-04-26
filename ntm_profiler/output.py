@@ -1,7 +1,6 @@
 
 from collections import defaultdict
 import os
-from typing import DefaultDict
 from pathogenprofiler import filecheck, debug, infolog
 import csv
 import pathogenprofiler as pp
@@ -44,6 +43,12 @@ Species report
 -----------------
 %(species_report)s
 """ % text_strings
+    if "mash_species_report" in text_strings:
+        text+="""
+Mash species report
+-----------------
+%(mash_species_report)s
+""" % text_strings
     if "dr_report" in text_strings:
         text+="""
 Resistance report
@@ -84,7 +89,7 @@ Resistance Database version%(sep)s%(resistance_db_version)s
     return text
 
 def load_species_text(text_strings):
-        return r"""
+    text = r"""
 NTM-Profiler report
 =================
 
@@ -97,8 +102,14 @@ Date%(sep)s%(date)s
 
 Species report
 -----------------
-%(species_report)s
-
+%(species_report)s""" % text_strings
+    if "mash_species_report" in text_strings:
+        text+="""
+Mash species report
+-----------------
+%(mash_species_report)s
+""" % text_strings
+    text += """
 Analysis pipeline specifications
 --------------------------------
 Pipeline version%(sep)s%(version)s
@@ -106,7 +117,7 @@ Species Database version%(sep)s%(species_db_version)s
 
 %(pipeline)s
 """ % text_strings
-
+    return text
 
 def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="\t"):
     if "resistance_genes" not in json_results:
@@ -122,8 +133,8 @@ def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="
         text_strings["species_report"] = pp.dict_list2text(json_results["species"]["prediction"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
     text_strings["dr_report"] = pp.dict_list2text(json_results["drug_table"],["Drug","Genotypic Resistance","Mutations"]+columns if columns else [],sep=sep)
     text_strings["dr_genes_report"] = pp.dict_list2text(json_results["resistance_genes"],["locus_tag","gene","type","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
-    text_strings["dr_var_report"] = pp.dict_list2text(json_results["dr_variants"],["genome_pos","locus_tag","gene","change","type","freq","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
-    text_strings["other_var_report"] = pp.dict_list2text(json_results["other_variants"],["genome_pos","locus_tag","gene","change","type","freq"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","freq":"Estimated fraction"},sep=sep)
+    text_strings["dr_var_report"] = pp.dict_list2text(json_results["dr_variants"],["genome_pos","locus_tag","gene","change","type","freq","drugs.drug"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","type":"Variant type","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
+    text_strings["other_var_report"] = pp.dict_list2text(json_results["other_variants"],["genome_pos","locus_tag","gene","change","type","freq"],{"genome_pos":"Genome Position","locus_tag":"Locus Tag","type":"Variant type","freq":"Estimated fraction"},sep=sep)
     text_strings["coverage_report"] = pp.dict_list2text(json_results["qc"]["gene_coverage"], ["gene","locus_tag","cutoff","fraction"],sep=sep) if "gene_coverage" in json_results["qc"] else "N/A"
     text_strings["missing_report"] = pp.dict_list2text(json_results["qc"]["missing_positions"],["gene","locus_tag","position","position_type","drug_resistance_position"],sep=sep) if "missing_report" in json_results["qc"] else "N/A"
     text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
@@ -145,6 +156,8 @@ def write_species_text(json_results,outfile,sep="\t"):
     text_strings["id"] = json_results["id"]
     text_strings["date"] = time.ctime()
     text_strings["species_report"] = pp.dict_list2text(json_results["species"]["prediction"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
+    if "mash_closest_species" in json_results:
+        text_strings["mash_species_report"] = pp.dict_list2text(json_results["mash_closest_species"]["prediction"],{"accession":"Accession","species":"Species","mash-ANI":"mash-ANI"},sep=sep)
     text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
     text_strings["species_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % json_results["species"]["species_db_version"]
