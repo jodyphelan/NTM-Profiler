@@ -21,13 +21,13 @@ def cleanup():
         import traceback
         
         if "prefix" in vars(args):
-            outfile = "%s.errlog" % args.prefix
+            outfile = "%s.errlog.txt" % args.prefix
         elif "vcf" in vars(args):
-            outfile = "%s.errlog" % args.vcf.split("/")[-1]
+            outfile = "%s.errlog.txt" % args.vcf.split("/")[-1]
         elif "outfile" in vars(args):
-            outfile = "%s.errlog" % args.outfile
+            outfile = "%s.errlog.txt" % args.outfile
         else:
-            outfile = "%s.errlog" % uuid4()
+            outfile = "%s.errlog.txt" % uuid4()
         with open(outfile, "w") as O:
             O.write("# ntm-profiler error report\n\n")
             O.write("* OS: %s\n" % sys.platform)
