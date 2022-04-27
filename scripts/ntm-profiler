@@ -106,7 +106,8 @@ def main_profile(args):
     args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     if args.conf is None:
         mash_prediction = ntmp.get_mash_hit(args)
-        results["mash_closest_species"] = mash_prediction
+        if not args.no_mash:
+            results["mash_closest_species"] = mash_prediction
         ntmp.write_outputs(args,results)
 
         quit(0)
@@ -126,7 +127,7 @@ def main_profile(args):
         {"Analysis":"Mapping","Program": args.mapper if not args.bam else "N/A"},
         {"Analysis":"Variant calling","Program":args.caller}
     ])
-    results["resistance_db_version"] = json.load(open(args.conf["version"]))
+    results["resistance_db_version"] = args.conf["version"]
 
     results = ntmp.reformat(results,args.conf)
 
@@ -176,7 +177,7 @@ def main_update_db(args):
         os.chdir('ntmdb/db/')
     dirs = [d for d in os.listdir() if os.path.isdir(d)]
     pp.infolog('\nCreating species DB')
-    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --kmers ntm_db.kmers.txt --load')
+    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --kmers ntm_db.kmers.txt --mash_db ntm_db.msh --mash_db_info ntm_db.msh_info.csv --load')
     for d in dirs:
         os.chdir(d)
         for species in json.load(open('variables.json'))['species']:
@@ -234,7 +235,7 @@ algorithm.add_argument('--no_flagstat',action="store_true",help="Don't collect f
 algorithm.add_argument('--no_clip',action="store_false",help="Don't clip reads")
 algorithm.add_argument('--no_delly',action="store_true",help="Don't run delly")
 algorithm.add_argument('--no_species',action="store_true",help=argparse.SUPPRESS)
-algorithm.add_argument('--mash',action="store_true",help="Don't run delly")
+algorithm.add_argument('--no_mash',action="store_true",help="Don't run mash if kmers speciation fails")
 algorithm.add_argument('--output_kmer_counts',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--add_variant_annotations',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)

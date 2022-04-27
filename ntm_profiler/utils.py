@@ -12,7 +12,7 @@ def errlog(x):
 
 def test_resistance_genes(conf,results):
     resistance_genes = {}
-    db = json.load(open(conf["json_db"]))
+    db = conf["json_db"]
     for gene in db:
         if "functional_gene" in db[gene]:
             resistance_genes[gene] = db[gene]["functional_gene"]
