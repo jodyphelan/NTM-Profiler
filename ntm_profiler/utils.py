@@ -44,7 +44,7 @@ def get_mash_hit(args):
     db_info = pp.parse_csv(args.species_conf["mash_db_info"])
     if args.read1:
         if args.read2:
-            pp.run_cmd("cat {args.read1} {args.read2} > {args.files_prefix}.fq.gz")
+            pp.run_cmd(f"cat {args.read1} {args.read2} > {args.files_prefix}.fq.gz")
             reads = f"{args.files_prefix}.fq.gz"
         else:
             reads = args.read1
