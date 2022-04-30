@@ -27,6 +27,10 @@ def test_profile():
     result = json.load(open("ERR459870.results.json"))
     assert result == example
 
+def test_profile_unknown():
+    run_cmd("ntm-profiler profile -1 ~/test_data/DRR332975_1.fastq.gz -2 ~/test_data/DRR332975_2.fastq.gz  -p DRR332975 -t 3 --txt --csv")
+    result = json.load(open("DRR332975.results.json"))
+    assert len(result['mash_closest_species']['prediction']) > 0
 
 # def test_clean():
 #     os.chdir("../")
