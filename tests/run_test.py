@@ -13,7 +13,7 @@ def get_variants(data,type):
     return [(x["gene"],x["change"]) for x in data[type]]
 
 def test_update_library():
-    run_cmd("ntm-profiler update_db --branch leprae")
+    run_cmd("ntm-profiler update_db")
 
 def test_fasta_profile():
     run_cmd("ntm-profiler profile -f ~/test_data/ERR459870.contigs.fa -p ERR459870_fasta -t 3 --txt --csv")
