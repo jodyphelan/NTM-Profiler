@@ -9,10 +9,10 @@ Please beware that this tools is in alpha testing and should not yet be consider
 Installation is available through conda:
 
 ```
-conda install -c bioconda ntm-profiler=0.1.1
+conda install -c bioconda ntm-profiler=0.2.1
 ```
 
-After installing, the relevand species and resistance databases can be downloaded by running:
+After installing, the relevant species and resistance databases can be downloaded by running:
 
 ```
 ntm-profiler update_db
@@ -20,13 +20,52 @@ ntm-profiler update_db
 
 ## Running
 
-### Predicting species
+### Predicting species/resistance
 
-NTM-Profiler species prediciton is currently available to run on fastq data with at least one read file to be supplied. The output is a txt file with the species prediction.
+NTM-Profiler species prediciton is currently available to run on a fastq, bam, cram, fasta or vcf data. The output is a txt file with the species prediction and if there is a resistance database then it will also output a  list of variants and if they have been associated with drug resistance.
+
+### Fastq data
+
+Raw sequencing data in fastq format can been used as input using the following command. The second read is optional.
 
 ```
 ntm-profiler profile -1 /path/to/my/reads_1.fastq.gz -2 /path/to/my/reads_2.fastq.gz -p my_sample_name
 ```
+
+#### FastQ data
+
+Aligned data in the form of bam or cram files can be used. Please note that the alignment files **must** have been generated with the same reference genome (even the chromosome names) as those used by `ntm-profiler` database.
+
+```
+ntm-profiler profile -a /path/to/my/bam -p my_sample_name
+```
+
+### Fasta data
+
+Assembled genomes or gene sequencves in fasta format can been used as input using the following command.
+
+```
+ntm-profiler profile -f /path/to/my/fasta -p my_sample_name
+```
+
+### VCF data
+
+Varaints stored in VCF format can been used as input using the following command. Again the chromosome names must match those in the species-specific database
+
+```
+ntm-profiler profile --vcf /path/to/my/vcf -p my_sample_name
+```
+
+### General options
+
+If you have used a reference genome with different sequence names that you have used to generate a bam/cram/vcf then it is possible to align the `ntm-profiler` databases to use the same sequence names. Please go to the custom databases section to find out more.
+
+Other useful options arguments include 
+* `--threads` - sets the number of parallel threads
+* `--platform` - sets the platform that was used to generate the data (default=illumina) 
+* `--txt` - outputs a text based report
+
+A full list of arguments can be found by running `ntm-profiler profile -h`
 
 ## How it works?
 
@@ -36,6 +75,7 @@ Species prediction is performed by looking for pre-detemined kmers in read files
 ### Resistance prediction
 Resistance prediction is performed by aligning the read data to a species-specific reference genome and looking for resistance associated genes and variants. The reference and resistance database is stored in the [ntmdb github repo](https://github.com/jodyphelan/ntmdb). At the moment resistance prediction is available for:
 
+* _Mycobacterium leprae_
 * _Mycobacteroides abscessus subsp. abscessus_
 * _Mycobacteroides abscessus subsp. bolletii_
 * _Mycobacteroides abscessus subsp. massiliense_
