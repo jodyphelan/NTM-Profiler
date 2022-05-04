@@ -186,11 +186,14 @@ def collate(args):
     dr = defaultdict(lambda: defaultdict(list))
     drugs = set()
     dr_samples = set()
+    closest_seq = {}
     for s in tqdm(samples):
         # Data has the same structure as the .result.json files
         data = json.load(open(filecheck("%s/%s%s" % (args.dir,s,args.suffix))))
-        species[s] = ";".join([d["species"] for d in data["species"]["prediction"]])
-        
+        if len(data["species"]["prediction"])>0:
+            species[s] = ";".join([d["species"] for d in data["species"]["prediction"]])
+        if "mash_closest_species" in data:
+            closest_seq[s] = "|".join(pp.stringify(data["mash_closest_species"]["prediction"][0].values()))
         if "resistance_db_version" in data:
             dr_samples.add(s)
             for gene in data["resistance_genes"]:
@@ -207,7 +210,8 @@ def collate(args):
     for s in samples:
         result = {
             "id": s,
-            "species": species[s]
+            "species": species.get(s,"N/A"),
+            "closest-sequence": closest_seq.get(s,"N/A")
         }
         for d in sorted(drugs):
             if s in dr_samples:
