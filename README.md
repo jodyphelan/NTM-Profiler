@@ -70,7 +70,7 @@ A full list of arguments can be found by running `ntm-profiler profile -h`
 ## How it works?
 
 ### Species prediction
-Species prediction is performed by looking for pre-detemined kmers in read files which belong to a specific species. 
+Species prediction is performed by looking for pre-detemined kmers in read files which belong to a specific species. If no species is found using this method, mash is run using a database of all Mycobacteria sequences from GTDB to find the top 10 closest genomes.
 
 ### Resistance prediction
 Resistance prediction is performed by aligning the read data to a species-specific reference genome and looking for resistance associated genes and variants. The reference and resistance database is stored in the [ntmdb github repo](https://github.com/jodyphelan/ntmdb). At the moment resistance prediction is available for:
