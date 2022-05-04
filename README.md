@@ -24,7 +24,7 @@ ntm-profiler update_db
 
 NTM-Profiler species prediciton is currently available to run on a fastq, bam, cram, fasta or vcf data. The output is a txt file with the species prediction and if there is a resistance database then it will also output a  list of variants and if they have been associated with drug resistance.
 
-### Fastq data
+#### Fastq data
 
 Raw sequencing data in fastq format can been used as input using the following command. The second read is optional.
 
@@ -40,7 +40,7 @@ Aligned data in the form of bam or cram files can be used. Please note that the 
 ntm-profiler profile -a /path/to/my/bam -p my_sample_name
 ```
 
-### Fasta data
+#### Fasta data
 
 Assembled genomes or gene sequencves in fasta format can been used as input using the following command.
 
@@ -48,7 +48,7 @@ Assembled genomes or gene sequencves in fasta format can been used as input usin
 ntm-profiler profile -f /path/to/my/fasta -p my_sample_name
 ```
 
-### VCF data
+#### VCF data
 
 Varaints stored in VCF format can been used as input using the following command. Again the chromosome names must match those in the species-specific database
 
@@ -56,7 +56,7 @@ Varaints stored in VCF format can been used as input using the following command
 ntm-profiler profile --vcf /path/to/my/vcf -p my_sample_name
 ```
 
-### General options
+#### General options
 
 If you have used a reference genome with different sequence names that you have used to generate a bam/cram/vcf then it is possible to align the `ntm-profiler` databases to use the same sequence names. Please go to the custom databases section to find out more.
 
