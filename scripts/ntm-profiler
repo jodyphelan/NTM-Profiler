@@ -244,6 +244,7 @@ algorithm.add_argument('--no_mash',action="store_true",help="Don't run mash if k
 algorithm.add_argument('--output_kmer_counts',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--add_variant_annotations',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
+algorithm.add_argument('--mem',default=2,help='Max memory to use',type=int)
 
 other=parser_sub.add_argument_group("Other options")
 other.add_argument('--verbose',default=0, choices=[0,1,2],help="Verbosity increases from 0 to 2",type=int)
