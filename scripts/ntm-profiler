@@ -160,7 +160,10 @@ def create_species_db(args):
     pp.create_species_db(args,extra_files = extra_files)
 
 def create_resistance_db(args):
-    pp.create_db(args)
+    extra_files = {}
+    if args.barcode:
+        extra_files["barcode"] = args.barcode
+    pp.create_db(args,extra_files=extra_files)
 
 
 def main_collate(args):
@@ -183,7 +186,8 @@ def main_update_db(args):
         os.chdir(d)
         for species in json.load(open('variables.json'))['species']:
             pp.infolog(f'\nCreating DB for {species}')
-            pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv resistance_variants.csv --load')
+            barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
+            pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv resistance_variants.csv {barcode_arg} --load')
         os.chdir('../')
 
 
@@ -283,6 +287,7 @@ parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database 
 parser_sub.add_argument('--csv','-c',type=str,help='The CSV file containing mutations')
 parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
 parser_sub.add_argument('--watchlist','-w',type=str,help='A csv file containing genes to profile but without any specific associated mutations')
+parser_sub.add_argument('--barcode',type=str,help='A bed file containing lineage barcode SNPs')
 parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--custom',action="store_true",help='Tells the script this is a custom database, this is used to alter the generation of the version file')

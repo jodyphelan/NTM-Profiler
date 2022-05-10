@@ -49,6 +49,12 @@ Mash species report
 -----------------
 %(mash_species_report)s
 """ % text_strings
+    if "cluster_report" in text_strings:
+        text+="""
+Cluster report
+-----------------
+%(cluster_report)s
+""" % text_strings
     if "dr_report" in text_strings:
         text+="""
 Resistance report
@@ -131,6 +137,7 @@ def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="
     text_strings["date"] = time.ctime()
     if json_results["species"] is not None:
         text_strings["species_report"] = pp.dict_list2text(json_results["species"]["prediction"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
+    text_strings["cluster_report"] = pp.dict_list2text(json_results["barcode"],mappings={"annotation":"Cluster","freq":"Frequency"})
     text_strings["dr_report"] = pp.dict_list2text(json_results["drug_table"],["Drug","Genotypic Resistance","Mutations"]+columns if columns else [],sep=sep)
     text_strings["dr_genes_report"] = pp.dict_list2text(json_results["resistance_genes"],mappings={"locus_tag":"Locus Tag","gene":"Gene","drugs.drug":"Drug"},sep=sep)
     text_strings["dr_var_report"] = pp.dict_list2text(json_results["dr_variants"],mappings={"genome_pos":"Genome Position","locus_tag":"Locus Tag","type":"Variant type","change":"Change","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
