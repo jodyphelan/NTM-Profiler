@@ -104,8 +104,9 @@ def main_profile(args):
 
 
     args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
-    mash_prediction = ntmp.get_mash_hit(args)
-    results["mash_closest_species"] = mash_prediction
+    if not args.no_mash and not args.bam:
+        mash_prediction = ntmp.get_mash_hit(args)
+        results["mash_closest_species"] = mash_prediction
     
     if args.conf is None:
         ntmp.write_outputs(args,results)
