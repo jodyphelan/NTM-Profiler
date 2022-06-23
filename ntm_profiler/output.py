@@ -187,6 +187,9 @@ def collate(args):
     else:
         samples = [x.replace(args.suffix,"") for x in os.listdir(args.dir) if x[-len(args.suffix):]==args.suffix]
 
+    if len(samples)==0:
+        pp.infolog(f"\nNo result files found in directory '{args.dir}'. Do you need to specify '--dir'?\n")
+        quit(0)
 
     # Loop through the sample result files    
     species = {}
