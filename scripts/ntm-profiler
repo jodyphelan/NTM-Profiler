@@ -172,14 +172,18 @@ def main_collate(args):
 
 
 def main_update_db(args):
-    if os.path.isdir('ntmdb'):
-        os.chdir('ntmdb')
-        pp.run_cmd('git pull')
+    dirname = args.repo.split("/")[-1].replace(".git","")
+    if os.path.isdir(dirname):
+        os.chdir(dirname)
+        # pp.run_cmd('git pull')
         os.chdir('db/')
     else:
-        pp.run_cmd('git clone https://github.com/jodyphelan/ntmdb.git')
-        os.chdir('ntmdb/db/')
+        pp.run_cmd(f'git clone {args.repo}')
+        os.chdir(f'{dirname}/db/')
         pp.run_cmd(f'git checkout {args.branch}')
+    if args.commit:
+        pp.run_cmd(f"git checkout {args.commit}")
+
     dirs = [d for d in os.listdir() if os.path.isdir(d)]
     pp.infolog('\nCreating species DB')
     pp.run_cmd('ntm-profiler create_species_db -p ntmdb --kmers ntm_db.kmers.txt --mash_db ntm_db.msh --mash_db_info ntm_db.msh_info.csv --load')
@@ -190,6 +194,12 @@ def main_update_db(args):
             barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
             pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv resistance_variants.csv {barcode_arg} --load')
         os.chdir('../')
+
+def main_list_db(args):
+    dbs = pp.list_db(args.software_name)
+    for db in dbs:
+        db['location'] = f"{sys.base_prefix}/share/{args.software_name}/{db['name']}"
+        sys.stdout.write("%(name)s\t%(commit)s\t%(Author)s\t%(Date)s\t%(location)s\n" % db)
 
 
 
@@ -275,7 +285,9 @@ parser_sub.set_defaults(func=main_collate)
 
 # Update database #
 parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--repo','-r',default="https://github.com/ntm-db/ntm-db.git",help='Repository to pull from')
 parser_sub.add_argument('--branch','-b',default="main",help='Storage directory')
+parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (default: latest)')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.set_defaults(func=main_update_db)
@@ -318,6 +330,11 @@ parser_sub.add_argument('--version', action='version', version="NTM-Profiler ver
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.set_defaults(func=create_species_db)
 
+parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--no_clean', action='store_true',help=argparse.SUPPRESS)
+parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
+parser_sub.set_defaults(func=main_list_db)
 
 
 args = parser.parse_args()
