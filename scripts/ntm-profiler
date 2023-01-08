@@ -17,7 +17,7 @@ def cleanup():
         if args.files_prefix and not args.no_clean:
             sys.stderr.write("Cleaning up after failed run\n")
             for f in glob.glob(args.files_prefix+"*"):
-                os.remove(f)
+                pp.run_cmd(f"rm -r {f}")
         import traceback
         
         if "prefix" in vars(args):
@@ -231,7 +231,6 @@ output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix fo
 output.add_argument('--dir','-d',default=".",help='Storage directory')
 output.add_argument('--csv',action="store_true",help="Add CSV output")
 output.add_argument('--txt',action="store_true",help="Add text output")
-# output.add_argument('--pdf',action="store_true",help="Add PDF output. This requires pdflatex to be installed")
 output.add_argument('--add_columns',default=None,type=str,help="Add additional columns found in the mutation database to the text and csv results")
 output.add_argument('--add_mutation_metadata',action="store_true",help=argparse.SUPPRESS)
 output.add_argument('--call_whole_genome',action="store_true",help="Call whole genome")
@@ -259,6 +258,7 @@ algorithm.add_argument('--mem',default=2,help='Max memory to use',type=int)
 
 other=parser_sub.add_argument_group("Other options")
 other.add_argument('--verbose',default=0, choices=[0,1,2],help="Verbosity increases from 0 to 2",type=int)
+other.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 other.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
@@ -277,6 +277,7 @@ parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=main_collate)
 
 
@@ -286,10 +287,11 @@ parser_sub.set_defaults(func=main_collate)
 # Update database #
 parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_sub.add_argument('--repo','-r',default="https://github.com/ntm-db/ntm-db.git",help='Repository to pull from')
-parser_sub.add_argument('--branch','-b',default="main",help='Storage directory')
+parser_sub.add_argument('--branch','-b',default="master",help='Storage directory')
 parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (default: latest)')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=main_update_db)
 
 
@@ -312,6 +314,7 @@ parser_sub.add_argument('--db-date',help='Overrides the date of the database in 
 parser_sub.add_argument('--include_original_mutation',action="store_true", help='Include the original mutation (before reformatting) as part of the variant annotaion')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=create_resistance_db)
 
 
@@ -328,12 +331,14 @@ parser_sub.add_argument('--db-author',help='Overrides the author of the database
 parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=create_species_db)
 
 parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--no_clean', action='store_true',help=argparse.SUPPRESS)
 parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=main_list_db)
 
 
@@ -341,7 +346,9 @@ args = parser.parse_args()
 if hasattr(args, 'func'):
     args.software_name = __softwarename__
     args.tmp_prefix = str(uuid4())
-    args.files_prefix = args.dir+"/"+args.tmp_prefix
+    
+    
+    args.files_prefix = f"{args.temp}/{args.tmp_prefix}"
 
     args.func(args)
 else:
