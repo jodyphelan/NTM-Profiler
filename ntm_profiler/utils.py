@@ -14,9 +14,8 @@ def test_resistance_genes(conf,results):
     resistance_genes = {}
     db = conf["json_db"]
     for gene in db:
-        if "functional_gene" in db[gene]:
-            resistance_genes[gene] = db[gene]["functional_gene"]
-
+        if "functionally_normal" in db[gene]:
+            resistance_genes[gene] = db[gene]["functionally_normal"]
     lof = ["large_deletion","frameshift_variant"]
     for var in results["variants"]:
         for csq in var["consequences"]:
@@ -25,9 +24,8 @@ def test_resistance_genes(conf,results):
                     if "interaction" in ann:
                         if "Override" in ann["interaction"]:
                             gene,type = ann["interaction"].split("=")[1].split(":")
-                            if type=="functional_gene" and gene in resistance_genes:
+                            if type=="functionally_normal" and gene in resistance_genes:
                                 del resistance_genes[gene]
-
     results = []
     for gene in resistance_genes:
         res = {

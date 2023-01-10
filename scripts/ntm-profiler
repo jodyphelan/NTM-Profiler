@@ -17,7 +17,7 @@ def cleanup():
         if args.files_prefix and not args.no_clean:
             sys.stderr.write("Cleaning up after failed run\n")
             for f in glob.glob(args.files_prefix+"*"):
-                os.remove(f)
+                pp.run_cmd(f"rm -r {f}")
         import traceback
         
         if "prefix" in vars(args):
@@ -110,7 +110,8 @@ def main_profile(args):
     
     if args.conf is None:
         ntmp.write_outputs(args,results)
-        pp.run_cmd(f"rm {args.files_prefix}*")
+        if len(glob.glob(f"{args.files_prefix}*"))>0:
+            pp.run_cmd(f"rm {args.files_prefix}*")
         quit(0)
     
     args = pp.set_platform_params(args)
@@ -172,14 +173,18 @@ def main_collate(args):
 
 
 def main_update_db(args):
-    if os.path.isdir('ntmdb'):
-        os.chdir('ntmdb')
-        pp.run_cmd('git pull')
+    dirname = args.repo.split("/")[-1].replace(".git","")
+    if os.path.isdir(dirname):
+        os.chdir(dirname)
+        # pp.run_cmd('git pull')
         os.chdir('db/')
     else:
-        pp.run_cmd('git clone https://github.com/jodyphelan/ntmdb.git')
-        os.chdir('ntmdb/db/')
+        pp.run_cmd(f'git clone {args.repo}')
+        os.chdir(f'{dirname}/db/')
         pp.run_cmd(f'git checkout {args.branch}')
+    if args.commit:
+        pp.run_cmd(f"git checkout {args.commit}")
+
     dirs = [d for d in os.listdir() if os.path.isdir(d)]
     pp.infolog('\nCreating species DB')
     pp.run_cmd('ntm-profiler create_species_db -p ntmdb --kmers ntm_db.kmers.txt --mash_db ntm_db.msh --mash_db_info ntm_db.msh_info.csv --load')
@@ -190,6 +195,12 @@ def main_update_db(args):
             barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
             pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv resistance_variants.csv {barcode_arg} --load')
         os.chdir('../')
+
+def main_list_db(args):
+    dbs = pp.list_db(args.software_name)
+    for db in dbs:
+        db['location'] = f"{sys.base_prefix}/share/{args.software_name}/{db['name']}"
+        sys.stdout.write("%(name)s\t%(commit)s\t%(Author)s\t%(Date)s\t%(location)s\n" % db)
 
 
 
@@ -221,7 +232,6 @@ output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix fo
 output.add_argument('--dir','-d',default=".",help='Storage directory')
 output.add_argument('--csv',action="store_true",help="Add CSV output")
 output.add_argument('--txt',action="store_true",help="Add text output")
-# output.add_argument('--pdf',action="store_true",help="Add PDF output. This requires pdflatex to be installed")
 output.add_argument('--add_columns',default=None,type=str,help="Add additional columns found in the mutation database to the text and csv results")
 output.add_argument('--add_mutation_metadata',action="store_true",help=argparse.SUPPRESS)
 output.add_argument('--call_whole_genome',action="store_true",help="Call whole genome")
@@ -229,6 +239,7 @@ output.add_argument('--call_whole_genome',action="store_true",help="Call whole g
 algorithm=parser_sub.add_argument_group("Algorithm options")
 algorithm.add_argument('--mapper',default="bwa", choices=["bwa","minimap2","bowtie2","bwa-mem2"],help="Mapping tool to use. If you are using nanopore data it will default to minimap2",type=str)
 algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use.",type=str)
+algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use.",type=str)
 algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
 algorithm.add_argument('--min_depth',default=10,type=int,help='Minimum depth required to call variant. Bases with depth below this cutoff will be marked as missing')
 algorithm.add_argument('--af',default=0.1,type=float,help='Minimum allele frequency to call variants')
@@ -245,10 +256,11 @@ algorithm.add_argument('--no_mash',action="store_true",help="Don't run mash if k
 algorithm.add_argument('--output_kmer_counts',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--add_variant_annotations',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
-algorithm.add_argument('--mem',default=2,help='Max memory to use',type=int)
+algorithm.add_argument('--mem',default=8,help='Max memory to use',type=int)
 
 other=parser_sub.add_argument_group("Other options")
 other.add_argument('--verbose',default=0, choices=[0,1,2],help="Verbosity increases from 0 to 2",type=int)
+other.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 other.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
@@ -267,6 +279,7 @@ parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=main_collate)
 
 
@@ -275,9 +288,12 @@ parser_sub.set_defaults(func=main_collate)
 
 # Update database #
 parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_sub.add_argument('--branch','-b',default="main",help='Storage directory')
+parser_sub.add_argument('--repo','-r',default="https://github.com/ntm-db/ntm-db.git",help='Repository to pull from')
+parser_sub.add_argument('--branch','-b',default="master",help='Storage directory')
+parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (default: latest)')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=main_update_db)
 
 
@@ -300,6 +316,7 @@ parser_sub.add_argument('--db-date',help='Overrides the date of the database in 
 parser_sub.add_argument('--include_original_mutation',action="store_true", help='Include the original mutation (before reformatting) as part of the variant annotaion')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=create_resistance_db)
 
 
@@ -316,15 +333,24 @@ parser_sub.add_argument('--db-author',help='Overrides the author of the database
 parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.set_defaults(func=create_species_db)
 
+parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--no_clean', action='store_true',help=argparse.SUPPRESS)
+parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.set_defaults(func=main_list_db)
 
 
 args = parser.parse_args()
 if hasattr(args, 'func'):
     args.software_name = __softwarename__
     args.tmp_prefix = str(uuid4())
-    args.files_prefix = args.dir+"/"+args.tmp_prefix
+    
+    
+    args.files_prefix = f"{args.temp}/{args.tmp_prefix}"
 
     args.func(args)
 else:

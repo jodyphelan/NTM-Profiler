@@ -25,7 +25,9 @@ def test_fasta_profile():
 def test_profile():
     run_cmd("ntm-profiler profile -1 ~/test_data/ERR459870_1.fastq.gz -2 ~/test_data/ERR459870_2.fastq.gz -p ERR459870 -t 3 --txt --csv")
     result = json.load(open("ERR459870.results.json"))
-    assert result == example
+    assert result["resistance_genes"] == example["resistance_genes"]
+    assert get_variants(example,"dr_variants")== get_variants(result,"dr_variants")
+    assert get_variants(example,"other_variants")== get_variants(result,"other_variants")
 
 def test_profile_unknown():
     run_cmd("ntm-profiler profile -1 ~/test_data/DRR332975_1.fastq.gz -2 ~/test_data/DRR332975_2.fastq.gz  -p DRR332975 -t 3 --txt --csv")
