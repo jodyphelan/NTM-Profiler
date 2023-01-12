@@ -32,7 +32,7 @@ Raw sequencing data in fastq format can been used as input using the following c
 ntm-profiler profile -1 /path/to/my/reads_1.fastq.gz -2 /path/to/my/reads_2.fastq.gz -p my_sample_name
 ```
 
-#### FastQ data
+#### BAM/CRAM data
 
 Aligned data in the form of bam or cram files can be used. Please note that the alignment files **must** have been generated with the same reference genome (even the chromosome names) as those used by `ntm-profiler` database.
 
