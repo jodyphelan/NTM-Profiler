@@ -206,7 +206,7 @@ def collate(args):
         if len(data["species"]["prediction"])>0:
             species[s] = ";".join([d["species"] for d in data["species"]["prediction"]])
         if "mash_closest_species" in data:
-            closest_seq[s] = "|".join(pp.stringify(data["mash_closest_species"]["prediction"][0].values()))
+            closest_seq[s] = "|".join(pp.stringify(data["mash_closest_species"]["prediction"][0].values())) if len(data["mash_closest_species"]["prediction"])>0 else ""
         if "barcode" in data:
             barcode[s] = "|".join(pp.stringify([x["annotation"] for x in data["barcode"]]))
         if "resistance_db_version" in data:
