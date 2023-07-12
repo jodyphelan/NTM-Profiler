@@ -32,7 +32,7 @@ Raw sequencing data in fastq format can been used as input using the following c
 ntm-profiler profile -1 /path/to/my/reads_1.fastq.gz -2 /path/to/my/reads_2.fastq.gz -p my_sample_name
 ```
 
-#### FastQ data
+#### BAM/CRAM data
 
 Aligned data in the form of bam or cram files can be used. Please note that the alignment files **must** have been generated with the same reference genome (even the chromosome names) as those used by `ntm-profiler` database.
 
@@ -50,7 +50,7 @@ ntm-profiler profile -f /path/to/my/fasta -p my_sample_name
 
 #### VCF data
 
-Varaints stored in VCF format can been used as input using the following command. Again the chromosome names must match those in the species-specific database
+Varaints stored in VCF format can been used as input using the following command. Again the chromosome names must match those in the species-specific database.
 
 ```
 ntm-profiler profile --vcf /path/to/my/vcf -p my_sample_name

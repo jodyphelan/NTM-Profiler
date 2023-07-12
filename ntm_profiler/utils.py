@@ -24,6 +24,8 @@ def test_resistance_genes(conf,results):
                     if "interaction" in ann:
                         if "Override" in ann["interaction"]:
                             gene,type = ann["interaction"].split("=")[1].split(":")
+                            pp.debug("akdjaskdaj")
+                            pp.debug((gene,type))
                             if type=="functionally_normal" and gene in resistance_genes:
                                 del resistance_genes[gene]
     results = []

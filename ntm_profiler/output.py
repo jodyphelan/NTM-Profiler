@@ -144,13 +144,13 @@ def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="
     text_strings["dr_genes_report"] = pp.dict_list2text(json_results["resistance_genes"],mappings={"locus_tag":"Locus Tag","gene":"Gene","drugs.drug":"Drug"},sep=sep)
     text_strings["dr_var_report"] = pp.dict_list2text(json_results["dr_variants"],mappings={"genome_pos":"Genome Position","locus_tag":"Locus Tag","type":"Variant type","change":"Change","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
     text_strings["other_var_report"] = pp.dict_list2text(json_results["other_variants"],mappings={"genome_pos":"Genome Position","locus_tag":"Locus Tag","type":"Variant type","change":"Change","freq":"Estimated fraction"},sep=sep)
-    text_strings["coverage_report"] = pp.dict_list2text(json_results["qc"]["gene_coverage"], ["gene","locus_tag","cutoff","fraction"],sep=sep) if "gene_coverage" in json_results["qc"] else "N/A"
+    text_strings["coverage_report"] = pp.dict_list2text(json_results["qc"]["region_qc"], mappings = {"gene":"gene","locus_tag":"locus_tag","median_depth":"median_depth","pct_depth_pass":"Depth pass"},sep=sep) if "region_qc" in json_results["qc"] else "N/A"
     text_strings["missing_report"] = pp.dict_list2text(json_results["qc"]["missing_positions"],["gene","locus_tag","position","position_type","drug_resistance_position"],sep=sep) if "missing_report" in json_results["qc"] else "N/A"
     text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
     debug(json_results["species"]["species_db_version"])
-    text_strings["species_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % json_results["species"]["species_db_version"] if "species_db_version" in json_results['species'] else "N/A"
-    text_strings["resistance_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % json_results["resistance_db_version"] if "resistance_db_version" in json_results else "N/A"
+    text_strings["species_db_version"] = "%(name)s_%(Author)s_%(Date)s" % json_results["species"]["species_db_version"] if "species_db_version" in json_results['species'] else "N/A"
+    text_strings["resistance_db_version"] = "%(name)s_%(Author)s_%(Date)s" % json_results["resistance_db_version"] if "resistance_db_version" in json_results else "N/A"
     if sep=="\t":
         text_strings["sep"] = ": "
     else:
@@ -169,7 +169,7 @@ def write_species_text(json_results,outfile,sep="\t",template_file=None):
         text_strings["mash_species_report"] = pp.dict_list2text(json_results["mash_closest_species"]["prediction"],{"accession":"Accession","species":"Species","mash-ANI":"mash-ANI"},sep=sep)
     text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
-    text_strings["species_db_version"] = "%(name)s_%(commit)s_%(Author)s_%(Date)s" % json_results["species"]["species_db_version"]
+    text_strings["species_db_version"] = "%(name)s_%(Author)s_%(Date)s" % json_results["species"]["species_db_version"]
     if sep=="\t":
         text_strings["sep"] = ": "
     else:
@@ -206,7 +206,7 @@ def collate(args):
         if len(data["species"]["prediction"])>0:
             species[s] = ";".join([d["species"] for d in data["species"]["prediction"]])
         if "mash_closest_species" in data:
-            closest_seq[s] = "|".join(pp.stringify(data["mash_closest_species"]["prediction"][0].values()))
+            closest_seq[s] = "|".join(pp.stringify(data["mash_closest_species"]["prediction"][0].values())) if len(data["mash_closest_species"]["prediction"])>0 else ""
         if "barcode" in data:
             barcode[s] = "|".join(pp.stringify([x["annotation"] for x in data["barcode"]]))
         if "resistance_db_version" in data:
