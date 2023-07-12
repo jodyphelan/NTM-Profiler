@@ -49,7 +49,9 @@ def get_mash_hit(args):
         pp.run_cmd(f"mash dist -m 2 {args.species_conf['mash_db']} {reads} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
     elif args.fasta:
         pp.run_cmd(f"mash dist {args.species_conf['mash_db']} {args.fasta} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
-
+    elif args.bam:
+        pp.run_cmd(f"samtools fastq {args.bam} | mash dist -m 2 {args.species_conf['mash_db']} - | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
+        
     result =  {
         "prediction_method":"mash",
         "prediction":[],
