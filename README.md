@@ -50,7 +50,7 @@ ntm-profiler profile -f /path/to/my/fasta -p my_sample_name
 
 #### VCF data
 
-Varaints stored in VCF format can been used as input using the following command. Again the chromosome names must match those in the species-specific database
+Varaints stored in VCF format can been used as input using the following command. Again the chromosome names must match those in the species-specific database.
 
 ```
 ntm-profiler profile --vcf /path/to/my/vcf -p my_sample_name
