@@ -3,12 +3,6 @@ import json
 from uuid import uuid4
 import pathogenprofiler as pp
 
-def infolog(x):
-    sys.stderr.write('\033[94m' + str(x) + '\033[0m' + '\n')
-
-def errlog(x):
-    sys.stderr.write('\033[91m' + str(x) + '\033[0m' + '\n')
-
 
 def test_resistance_genes(conf,results):
     resistance_genes = {}
@@ -37,34 +31,46 @@ def test_resistance_genes(conf,results):
     return results
 
 
-def get_mash_hit(args):
+def get_sourmash_hit(args):
     args.species_conf = pp.get_db(args.software_name,args.species_db)
-    db_info = pp.parse_csv(args.species_conf["mash_db_info"])
     if args.read1:
         if args.read2:
-            pp.run_cmd(f"cat {args.read1} {args.read2} > {args.files_prefix}.fq.gz")
-            reads = f"{args.files_prefix}.fq.gz"
+            fastq = pp.Fastq(args.read1,args.read2)
         else:
-            reads = args.read1
-        pp.run_cmd(f"mash dist -m 2 {args.species_conf['mash_db']} {reads} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
+            fastq = pp.Fastq(args.read1)
+        raw_sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
+        sourmash_sig = raw_sourmash_sig.filter()
     elif args.fasta:
-        pp.run_cmd(f"mash dist {args.species_conf['mash_db']} {args.fasta} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
+        pp.run_cmd(f"mash dist {args.species_conf['sourmash_db']} {args.fasta} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
+        fasta = pp.Fasta(args.fasta)
+        sourmash_sig = fasta.sourmash_sketch(args.files_prefix)
     elif args.bam:
-        pp.run_cmd(f"samtools fastq {args.bam} | mash dist -m 2 {args.species_conf['mash_db']} - | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
-        
-    result =  {
-        "prediction_method":"mash",
-        "prediction":[],
-        "species_db_version":args.species_conf["version"]
-    }
-    for l in open(f"{args.files_prefix}.mash_dist.txt"):
-        row = l.strip().split()
-        acc = row[0].replace("db/","").replace(".fa","")
-        species = db_info[acc]["species"]
-        result["prediction"].append({
-            "accession":acc,
-            "species":species,
-            "mash-ANI":1-float(row[2])
-        })
+        pp.run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.tmp.fastq")
+        fq_file = f"{args.files_prefix}.tmp.fastq"
+        fastq = pp.Fastq(fq_file)
+        raw_sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
+        sourmash_sig = raw_sourmash_sig.filter()
+
+    sourmash_sig = sourmash_sig.search(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"])
+    result =  []
+
+    if len(sourmash_sig)>0:
+        result = sourmash_sig
     
     return result
+
+
+def consolidate_species_predictions(kmer_prediction, sourmash_prediction):
+    if len(kmer_prediction)>1:
+        return None
+    elif len(kmer_prediction)>0 and len(sourmash_prediction)>0:
+        if kmer_prediction[0]["species"]==sourmash_prediction[0]["species"]:
+            return kmer_prediction[0]["species"]
+        else:
+            return None
+    elif len(sourmash_prediction)>0:
+        return sourmash_prediction[0]["species"]
+    elif len(kmer_prediction)>0:
+        return kmer_prediction[0]["species"]
+    else:
+        return None

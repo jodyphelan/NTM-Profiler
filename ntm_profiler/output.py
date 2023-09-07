@@ -1,28 +1,29 @@
 
 from collections import defaultdict
 import os
-from pathogenprofiler import filecheck, debug, infolog
+from pathogenprofiler import filecheck
 import csv
 import pathogenprofiler as pp
 import time
 from tqdm import tqdm
 import json
 import jinja2
+import logging
 
 def write_outputs(args,results):
-    infolog("\nWriting outputs")
-    infolog("---------------")
+    logging.info("\nWriting outputs")
+    logging.info("---------------")
     json_output = args.dir+"/"+args.prefix+".results.json"
     text_output = args.dir+"/"+args.prefix+".results.txt"
     csv_output = args.dir+"/"+args.prefix+".results.csv"
     extra_columns = [x.lower() for x in args.add_columns.split(",")] if args.add_columns else []
-    infolog(f"Writing json file: {json_output}")
+    logging.info(f"Writing json file: {json_output}")
     json.dump(results,open(json_output,"w"))
     if args.txt:
-        infolog(f"Writing text file: {text_output}")
+        logging.info(f"Writing text file: {text_output}")
         write_text(results,args.conf,text_output,extra_columns,reporting_af=args.reporting_af)
     if args.csv:
-        infolog(f"Writing csv file: {csv_output}")
+        logging.info(f"Writing csv file: {csv_output}")
         write_text(results,args.conf,csv_output,extra_columns)
 
 default_template = """
@@ -148,7 +149,7 @@ def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="
     text_strings["missing_report"] = pp.dict_list2text(json_results["qc"]["missing_positions"],["gene","locus_tag","position","position_type","drug_resistance_position"],sep=sep) if "missing_report" in json_results["qc"] else "N/A"
     text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
-    debug(json_results["species"]["species_db_version"])
+
     text_strings["species_db_version"] = "%(name)s_%(Author)s_%(Date)s" % json_results["species"]["species_db_version"] if "species_db_version" in json_results['species'] else "N/A"
     text_strings["resistance_db_version"] = "%(name)s_%(Author)s_%(Date)s" % json_results["resistance_db_version"] if "resistance_db_version" in json_results else "N/A"
     if sep=="\t":
@@ -190,7 +191,7 @@ def collate(args):
         samples = [x.replace(args.suffix,"") for x in os.listdir(args.dir) if x[-len(args.suffix):]==args.suffix]
 
     if len(samples)==0:
-        pp.infolog(f"\nNo result files found in directory '{args.dir}'. Do you need to specify '--dir'?\n")
+        pp.logging.info(f"\nNo result files found in directory '{args.dir}'. Do you need to specify '--dir'?\n")
         quit(0)
 
     # Loop through the sample result files    
