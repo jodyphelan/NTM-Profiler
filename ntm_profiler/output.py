@@ -204,8 +204,10 @@ def collate(args):
     for s in tqdm(samples):
         # Data has the same structure as the .result.json files
         data = json.load(open(filecheck("%s/%s%s" % (args.dir,s,args.suffix))))
-        if len(data["species"]["prediction"])>0:
+        if data["species"]["prediction"]:
             species[s] =  data["species"]["prediction"]
+        else:
+            species[s] = "N/A"
         if "mash_closest_species" in data:
             closest_seq[s] = "|".join(pp.stringify(data["mash_closest_species"]["prediction"][0].values())) if len(data["mash_closest_species"]["prediction"])>0 else ""
         if "barcode" in data:
