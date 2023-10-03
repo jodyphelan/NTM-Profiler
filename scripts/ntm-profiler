@@ -200,25 +200,25 @@ def main_update_db(args):
     
     sourmash_file = 'ntm_db.sbt.zip'
     logging.debug(f"Currently in directory: {os.getcwd()}")
-    if os.path.isfile(sourmash_file):
-        logging.info('Checking md5sum of ntm_db.sbt.zip')
-        import hashlib
-        # perform md5sum check on file with python
-        md5 = hashlib.md5(open('ntm_db.sbt.zip','rb').read()).hexdigest()
-        r = requests.get('https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip.md5.json')
-        if json.loads(r.text.strip())['md5']!=md5:
-            logging.info('md5sum check failed, downloading new file')
-            # download file from url https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip
-            r = requests.get('https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip')
-            with open('ntm_db.sbt.zip', 'wb') as f:
-                f.write(r.content)
-        else:
-            pass
-    else:
-        logging.info('Downloading ntm_db.sbt.zip')
-        r = requests.get('https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip')
-        with open('ntm_db.sbt.zip', 'wb') as f:
-            f.write(r.content)
+    # if os.path.isfile(sourmash_file):
+    #     logging.info('Checking md5sum of ntm_db.sbt.zip')
+    #     import hashlib
+    #     # perform md5sum check on file with python
+    #     md5 = hashlib.md5(open('ntm_db.sbt.zip','rb').read()).hexdigest()
+    #     r = requests.get('https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip.md5.json')
+    #     if json.loads(r.text.strip())['md5']!=md5:
+    #         logging.info('md5sum check failed, downloading new file')
+    #         # download file from url https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip
+    #         r = requests.get('https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip')
+    #         with open('ntm_db.sbt.zip', 'wb') as f:
+    #             f.write(r.content)
+    #     else:
+    #         pass
+    # else:
+    #     logging.info('Downloading ntm_db.sbt.zip')
+    #     r = requests.get('https://tbdr.lshtm.ac.uk/static/ntm_db.sbt.zip')
+    #     with open('ntm_db.sbt.zip', 'wb') as f:
+    #         f.write(r.content)
 
 
 
