@@ -51,7 +51,7 @@ def get_sourmash_hit(args):
         raw_sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
         sourmash_sig = raw_sourmash_sig.filter()
 
-    sourmash_sig = sourmash_sig.search(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],ani_threshold=70)
+    sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"])
     result =  []
 
     if len(sourmash_sig)>0:
@@ -59,6 +59,12 @@ def get_sourmash_hit(args):
     
     return result
 
+def summarise_sourmash_hits(sourmash_hits):
+    species = []
+    for hit in sourmash_hits:
+        if hit["species"] not in species:
+            species.append(hit["species"])
+    return ";".join(species)
 
 def consolidate_species_predictions(kmer_prediction, sourmash_prediction):
     filtered_sourmash_prediction = [d for d in sourmash_prediction if d["ani"]>95]

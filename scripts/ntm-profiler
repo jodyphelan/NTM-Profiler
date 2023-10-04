@@ -91,14 +91,12 @@ def main_profile(args):
     }
     
     if args.run_species:
-        kmer_species_prediction = pp.kmer_speciate(args)
         sourmash_species_prediction = ntmp.get_sourmash_hit(args)
-        combined_species_prediction = ntmp.consolidate_species_predictions(kmer_species_prediction,sourmash_species_prediction)
+        species_summary = ntmp.summarise_sourmash_hits(sourmash_species_prediction)
         results["species"] = {
-            "prediction_method":"kmer+sourmash",
-            "prediction":combined_species_prediction,
-            "kmer_prediction":kmer_species_prediction,
-            "sourmash_prediction":sourmash_species_prediction,
+            "prediction_method":"sourmash",
+            "prediction":species_summary,
+            "prediction_info":sourmash_species_prediction,
             "species_db_version":args.species_conf["version"]
         }
         results.update({
