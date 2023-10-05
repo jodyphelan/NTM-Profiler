@@ -87,7 +87,8 @@ def main_profile(args):
     
     results = {
         "id":args.prefix,
-        "software_version":ntmp.__version__
+        "software_version":ntmp.__version__,
+        "pipeline_software":[]
     }
     
     if args.run_species:
@@ -99,9 +100,6 @@ def main_profile(args):
             "prediction_info":sourmash_species_prediction,
             "species_db_version":args.species_conf["version"]
         }
-        results.update({
-            "pipeline_software": [{"Analysis":"Kmer counting","Program":"kmc"}]
-        })
     else:
         species_prediction = None
     
@@ -113,8 +111,10 @@ def main_profile(args):
         pp.successlog("Species prediction finished!")
         quit(0)
 
-
-    args.conf = pp.get_resistance_db_from_species_prediction(args,results["species"]["prediction"])
+    if args.vcf:
+        args.conf = pp.get_db(__softwarename__,args.resistance_db)
+    else:
+        args.conf = pp.get_resistance_db_from_species_prediction(args,results["species"]["prediction"])
     
     if args.conf is None:
         if results["species"]["prediction"] is None:
@@ -247,7 +247,7 @@ def main_list_db(args):
 parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser.add_argument('--no_clean', action='store_true', help=argparse.SUPPRESS)
-parser.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+parser.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 subparsers = parser.add_subparsers(help="Task to perform")
 
 
@@ -307,7 +307,7 @@ other.add_argument('--temp',help="Temp firectory to process all files",type=str,
 other.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
-other.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+other.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_profile)
 
 
@@ -324,7 +324,7 @@ parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input 
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
-parser_sub.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_collate)
 
 
@@ -339,7 +339,7 @@ parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (defau
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
-parser_sub.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_update_db)
 
 
@@ -363,7 +363,7 @@ parser_sub.add_argument('--include_original_mutation',action="store_true", help=
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
-parser_sub.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=create_resistance_db)
 
 
@@ -381,7 +381,7 @@ parser_sub.add_argument('--db-date',help='Overrides the date of the database in 
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
-parser_sub.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=create_species_db)
 
 parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
@@ -389,7 +389,7 @@ parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--no_clean', action='store_true',help=argparse.SUPPRESS)
 parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
-parser_sub.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_list_db)
 
 
