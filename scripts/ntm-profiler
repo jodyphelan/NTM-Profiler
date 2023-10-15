@@ -166,7 +166,7 @@ def main_profile(args):
 def create_species_db(args):
     extra_files = {
         "sourmash_db":args.sourmash_db,
-        "sourmash_db_info":args.sourmash_db_info
+        "sourmash_db_info":args.accessions
     }
     pp.create_species_db(args,extra_files = extra_files)
 
@@ -196,8 +196,11 @@ def main_update_db(args):
         # 
         pp.run_cmd(f'git checkout {args.branch}')
     
-    sourmash_file = 'ntm_db.sbt.zip'
-    logging.debug(f"Currently in directory: {os.getcwd()}")
+    if args.commit:
+        pp.run_cmd(f"git checkout {args.commit}")
+        
+    pp.run_cmd("zip -F species/sourmash-split.zip --out species/sourmash.sbt.zip")
+
     # if os.path.isfile(sourmash_file):
     #     logging.info('Checking md5sum of ntm_db.sbt.zip')
     #     import hashlib
@@ -220,12 +223,12 @@ def main_update_db(args):
 
 
 
-    if args.commit:
-        pp.run_cmd(f"git checkout {args.commit}")
 
-    dirs = [d for d in os.listdir() if os.path.isdir(d)]
+    dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
     pp.logging.info('\nCreating species DB')
-    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --kmers ntm_db.kmers.txt --sourmash_db ntm_db.sbt.zip --sourmash_db_info ntm_db.accessions.csv --load')
+    os.chdir('species')
+    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db ntm_db.sbt.zip --accessions ntm_db.accessions.csv --load')
+    os.chdir('../')
     for d in dirs:
         os.chdir(d)
         for species in json.load(open('variables.json'))['species']:
@@ -370,9 +373,8 @@ parser_sub.set_defaults(func=create_resistance_db)
 
 parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run speciation with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
-parser_sub.add_argument('--kmers',type=str,help='The file containing species specific kmers',required = True)
 parser_sub.add_argument('--sourmash_db',type=str,help='The file containing species sourmash',required = True)
-parser_sub.add_argument('--sourmash_db_info',type=str,help='The file containing map from accessions to species',required = True)
+parser_sub.add_argument('--accessions',type=str,help='The file containing map from accessions to species',required = True)
 parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
 parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
 parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
