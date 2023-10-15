@@ -38,8 +38,7 @@ def get_sourmash_hit(args):
             fastq = pp.Fastq(args.read1,args.read2)
         else:
             fastq = pp.Fastq(args.read1)
-        raw_sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
-        sourmash_sig = raw_sourmash_sig.filter()
+        sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
     elif args.fasta:
         pp.run_cmd(f"mash dist {args.species_conf['sourmash_db']} {args.fasta} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
         fasta = pp.Fasta(args.fasta)
@@ -48,8 +47,7 @@ def get_sourmash_hit(args):
         pp.run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.tmp.fastq")
         fq_file = f"{args.files_prefix}.tmp.fastq"
         fastq = pp.Fastq(fq_file)
-        raw_sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
-        sourmash_sig = raw_sourmash_sig.filter()
+        sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
 
     sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],intersect_bp=2500000,f_match_threshold=0.1)
     result =  []
