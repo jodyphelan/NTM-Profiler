@@ -21,7 +21,7 @@ def write_outputs(args,results):
     json.dump(results,open(json_output,"w"))
     if args.txt:
         logging.info(f"Writing text file: {text_output}")
-        write_text(results,args.conf,text_output,extra_columns,reporting_af=args.reporting_af)
+        write_text(results,args.conf,text_output,extra_columns)
     if args.csv:
         logging.info(f"Writing csv file: {csv_output}")
         write_text(results,args.conf,csv_output,extra_columns)
@@ -101,11 +101,7 @@ Date{{d['sep']}}{{d['date']}}
 
 Species report
 -----------------
-{{d['species_report']}}
-
-Mash species report
------------------
-{{d['mash_species_report']}}
+{{d['sourmash_species_report']}}
 
 Analysis pipeline specifications
 --------------------------------
@@ -125,20 +121,20 @@ def load_text(text_strings,template = None,file_template=None):
     return t.render(d=text_strings)
 
     
-def write_text(json_results,conf,outfile,columns = None,reporting_af = 0.0,sep="\t",template_file=None):
+def write_text(json_results,conf,outfile,columns = None,sep="\t",template_file=None):
     if "resistance_genes" not in json_results:
         return write_species_text(json_results,outfile)
-    json_results = pp.get_summary(json_results,conf,columns = columns,reporting_af=reporting_af)
+    json_results = pp.get_summary(json_results,conf,columns = columns)
     json_results["drug_table"] = [[y for y in json_results["drug_table"] if y["Drug"].upper()==d.upper()][0] for d in conf["drugs"]]
     for var in json_results["dr_variants"]:
         var["drug"] = ", ".join([d["drug"] for d in var["drugs"]])
     text_strings = {}
     text_strings["id"] = json_results["id"]
     text_strings["date"] = time.ctime()
-    if json_results["species"] is not None:
-        text_strings["species_report"] = pp.dict_list2text(json_results["species"]["prediction"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
-    if "mash_closest_species" in json_results:
-        text_strings["mash_species_report"] = pp.dict_list2text(json_results["mash_closest_species"]["prediction"],{"accession":"Accession","species":"Species","mash-ANI":"mash-ANI"},sep=sep)
+    # if json_results["species"] is not None:
+        # text_strings["species_report"] = pp.dict_list2text(json_results["species"]["prediction"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
+    if "species" in json_results and len(json_results['species']['prediction_info'])>0:
+        text_strings["sourmash_species_report"] = pp.dict_list2text(json_results["species"]["prediction_info"],{"accession":"Accession","species":"Species","ani":"ANI","abundance":"Abundance"},sep=sep)
     if "barcode" in json_results:
         text_strings["cluster_report"] = pp.dict_list2text(json_results["barcode"],mappings={"annotation":"Cluster","freq":"Frequency"})
     text_strings["dr_report"] = pp.dict_list2text(json_results["drug_table"],["Drug","Genotypic Resistance","Mutations"]+columns if columns else [],sep=sep)
@@ -166,8 +162,8 @@ def write_species_text(json_results,outfile,sep="\t",template_file=None):
     text_strings["id"] = json_results["id"]
     text_strings["date"] = time.ctime()
     text_strings["species_report"] = pp.dict_list2text(json_results["species"]["prediction"],["species","mean"],{"species":"Species","mean":"Mean kmer coverage"},sep=sep)
-    if "mash_closest_species" in json_results:
-        text_strings["mash_species_report"] = pp.dict_list2text(json_results["mash_closest_species"]["prediction"],{"accession":"Accession","species":"Species","mash-ANI":"mash-ANI"},sep=sep)
+    if "species" in json_results and len(json_results['species']['prediction_info'])>0:
+        text_strings["sourmash_species_report"] = pp.dict_list2text(json_results["species"]["prediction_info"],{"species":"Species","ani":"ANI","abundance":"Abundance","accession":"Closest accession"},sep=sep)
     text_strings["pipeline"] = pp.dict_list2text(json_results["pipeline_software"],["Analysis","Program"],sep=sep)
     text_strings["version"] = json_results["software_version"]
     text_strings["species_db_version"] = "%(name)s_%(Author)s_%(Date)s" % json_results["species"]["species_db_version"]
