@@ -227,7 +227,7 @@ def main_update_db(args):
     dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
     pp.logging.info('\nCreating species DB')
     os.chdir('species')
-    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db ntm_db.sbt.zip --accessions ntm_db.accessions.csv --load')
+    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --load')
     os.chdir('../')
     for d in dirs:
         os.chdir(d)
