@@ -6,6 +6,14 @@ def reformat_resistance_genes(results):
         del d["annotations"]
     return results
 
+def add_subspecies(results):
+    if "barcode" in results:
+        subspecies_found = [d['annotation'] for d in results["barcode"] if d['annotation'].startswith("subsp.")]
+        if len(subspecies_found)>0:
+            subspecies_list = [results["species"]["prediction"] + " "+ d for d in subspecies_found]
+            results["species"]["prediction"] = ";".join(subspecies_list)
+
+
 def reformat(results,conf):
     results["variants"] = [x for x in results["variants"] if len(x["consequences"])>0]
     results["variants"] = pp.select_csq(results["variants"])
@@ -19,4 +27,5 @@ def reformat(results,conf):
     if "missing_positions" in results["qc"]:
         results["qc"]["missing_positions"] = pp.reformat_missing_genome_pos(results["qc"]["missing_positions"],conf)
     
+    add_subspecies(results)
     return results

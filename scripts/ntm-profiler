@@ -8,6 +8,10 @@ from uuid import uuid4
 import json
 import glob
 import atexit
+import logging
+from rich_argparse import ArgumentDefaultsRichHelpFormatter
+from rich.logging import RichHandler
+import requests
 
 __softwarename__ = "ntm-profiler"
 
@@ -48,7 +52,7 @@ def cleanup():
             O.write("```\n")
             O.write("%s" % sys.last_value)
             O.write("```\n")
-        pp.errlog("""\n
+        logging.error("""\n
 ################################# ERROR #######################################
 
 This run has failed. Please check all arguments and make sure all input files
@@ -73,9 +77,9 @@ def main_profile(args):
         os.mkdir(args.dir)
 
     if args.vcf:
-        args.no_species = True
+        args.run_species = False
         if not args.resistance_db:
-            pp.errlog(
+            pp.logging.error(
                 "\nSpeciation can't be perfomrmed on a VCF file so a resistance database is needed. "
                 "Specify with --resistance_db or --external_resistance_db\n",
                 ext=True
@@ -83,17 +87,22 @@ def main_profile(args):
     
     results = {
         "id":args.prefix,
-        "software_version":ntmp.__version__
+        "software_version":ntmp.__version__,
+        "pipeline_software":[]
     }
-    if not args.no_species:
-        species_prediction = pp.speciate(args)
+    
+    if args.run_species:
+        sourmash_species_prediction = ntmp.get_sourmash_hit(args)
+        species_summary = ntmp.summarise_sourmash_hits(sourmash_species_prediction)
+        results["species"] = {
+            "prediction_method":"sourmash",
+            "prediction":species_summary,
+            "prediction_info":sourmash_species_prediction,
+            "species_db_version":args.species_conf["version"]
+        }
     else:
         species_prediction = None
     
-    results.update({
-        "species": species_prediction,
-        "pipeline_software": [{"Analysis":"Kmer counting","Program":"kmc"}]
-    })
 
     if args.species_only:
         args.conf = None
@@ -102,13 +111,14 @@ def main_profile(args):
         pp.successlog("Species prediction finished!")
         quit(0)
 
-
-    args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
-    if not args.no_mash and not args.vcf:
-        mash_prediction = ntmp.get_mash_hit(args)
-        results["mash_closest_species"] = mash_prediction
+    if args.vcf:
+        args.conf = pp.get_db(__softwarename__,args.resistance_db)
+    else:
+        args.conf = pp.get_resistance_db_from_species_prediction(args,results["species"]["prediction"])
     
     if args.conf is None:
+        if results["species"]["prediction"] is None:
+            pp.logging.error("No species prediction was made")
         ntmp.write_outputs(args,results)
         if len(glob.glob(f"{args.files_prefix}*"))>0:
             pp.run_cmd(f"rm {args.files_prefix}*")
@@ -116,9 +126,8 @@ def main_profile(args):
     
     args = pp.set_platform_params(args)
     
-    # Legacy compatibility
-    args.missing_cov_threshold = args.min_depth
 
+    args.conf['variant_filters'] = pp.get_variant_filters(args)
     results.update(pp.run_profiler(args))
 
 
@@ -156,8 +165,8 @@ def main_profile(args):
 
 def create_species_db(args):
     extra_files = {
-        "mash_db":args.mash_db,
-        "mash_db_info":args.mash_db_info
+        "sourmash_db":args.sourmash_db,
+        "sourmash_db_info":args.accessions
     }
     pp.create_species_db(args,extra_files = extra_files)
 
@@ -174,24 +183,35 @@ def main_collate(args):
 
 def main_update_db(args):
     dirname = args.repo.split("/")[-1].replace(".git","")
+    logging.debug(dirname)
     if os.path.isdir(dirname):
+        logging.debug(f"Directory {dirname} exists, pulling latest version")
         os.chdir(dirname)
-        # pp.run_cmd('git pull')
+        pp.run_cmd('git pull')
         os.chdir('db/')
     else:
+        logging.debug(f"Directory {dirname} does not exist, cloning repo")
         pp.run_cmd(f'git clone {args.repo}')
         os.chdir(f'{dirname}/db/')
+        # 
         pp.run_cmd(f'git checkout {args.branch}')
+    
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
+        
+    pp.run_cmd("zip -F species/sourmash-split.zip --out species/sourmash.sbt.zip")
 
-    dirs = [d for d in os.listdir() if os.path.isdir(d)]
-    pp.infolog('\nCreating species DB')
-    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --kmers ntm_db.kmers.txt --mash_db ntm_db.msh --mash_db_info ntm_db.msh_info.csv --load')
+
+    pp.logging.info('\nCreating species DB')
+    os.chdir('species')
+    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --load')
+    os.chdir('../')
+    dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
     for d in dirs:
+        logging.debug(f"Moving to {d}")
         os.chdir(d)
         for species in json.load(open('variables.json'))['species']:
-            pp.infolog(f'\nCreating DB for {species}')
+            logging.info(f'\nCreating DB for {species}')
             barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
             pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv resistance_variants.csv {barcode_arg} --load')
         os.chdir('../')
@@ -206,14 +226,15 @@ def main_list_db(args):
 
 #### Argument Parsing ####
 
-parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser.add_argument('--no_clean', action='store_true', help=argparse.SUPPRESS)
+parser.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 subparsers = parser.add_subparsers(help="Task to perform")
 
 
 ###### Profile #######
-parser_sub = subparsers.add_parser('profile', help='Run whole profiling pipeline', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub = subparsers.add_parser('profile', help='Run whole profiling pipeline', formatter_class=ArgumentDefaultsRichHelpFormatter)
 input=parser_sub.add_argument_group("Input options")
 group = input.add_mutually_exclusive_group(required=True)
 group.add_argument('--read1','-1',help='First read file')
@@ -236,18 +257,22 @@ output.add_argument('--add_columns',default=None,type=str,help="Add additional c
 output.add_argument('--add_mutation_metadata',action="store_true",help=argparse.SUPPRESS)
 output.add_argument('--call_whole_genome',action="store_true",help="Call whole genome")
 
+filtering=parser_sub.add_argument_group("Variant filtering options")
+filtering.add_argument('--depth',default="0,10",type=str,help='Minimum depth hard and soft cutoff specified as comma separated values')
+filtering.add_argument('--af',default="0,0.1",type=str,help='Minimum allele frequency hard and soft cutoff specified as comma separated values')
+filtering.add_argument('--strand',default="0,3",type=str,help='Minimum read number per strand hard and soft cutoff specified as comma separated values')
+filtering.add_argument('--sv_depth',default="0,10",type=str,help='Structural variant minimum depth hard and soft cutoff specified as comma separated values')
+filtering.add_argument('--sv_af',default="0.5,0.9",type=str,help='Structural variant minimum allele frequency hard cutoff specified as comma separated values')
+filtering.add_argument('--sv_len',default="100000,50000",type=str,help='Structural variant maximum size hard and soft cutoff specified as comma separated values')
+
+
 algorithm=parser_sub.add_argument_group("Algorithm options")
 algorithm.add_argument('--mapper',default="bwa", choices=["bwa","minimap2","bowtie2","bwa-mem2"],help="Mapping tool to use. If you are using nanopore data it will default to minimap2",type=str)
 algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use.",type=str)
 algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use.",type=str)
 algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
-algorithm.add_argument('--min_depth',default=10,type=int,help='Minimum depth required to call variant. Bases with depth below this cutoff will be marked as missing')
-algorithm.add_argument('--af',default=0.1,type=float,help='Minimum allele frequency to call variants')
-algorithm.add_argument('--reporting_af',default=0.1,type=float,help='Minimum allele frequency to use variants for prediction')
-algorithm.add_argument('--coverage_fraction_threshold',default=0,type=int,help='Cutoff used to calculate fraction of region covered by <= this value')
-algorithm.add_argument('--missing_cov_threshold',type=int,help='Cutoff used to positions/codons in genes which are missing (this argument has now been merged with --min_depth argument and will be deprecated in future releases)')
 algorithm.add_argument('--species_only',action="store_true",help="Predict species and quit")
-algorithm.add_argument('--no_species',action="store_true",help="Skip species prediction")
+algorithm.add_argument('--no_species',action="store_false",dest="run_species",help="Skip species prediction")
 algorithm.add_argument('--no_trim',action="store_true",help="Don't trim files using trimmomatic")
 algorithm.add_argument('--no_flagstat',action="store_true",help="Don't collect flagstats")
 algorithm.add_argument('--no_clip',action="store_false",help="Don't clip reads")
@@ -264,6 +289,7 @@ other.add_argument('--temp',help="Temp firectory to process all files",type=str,
 other.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
+other.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_profile)
 
 
@@ -272,7 +298,7 @@ parser_sub.set_defaults(func=main_profile)
 
 
 # Collate results #
-parser_sub = subparsers.add_parser('collate', help='Collate results form multiple samples together', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub = subparsers.add_parser('collate', help='Collate results form multiple samples together', formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser_sub.add_argument('--outfile','-o',default="ntmprofiler.collate.txt",help='Sample prefix')
 parser_sub.add_argument('--samples',help='File with samples (one per line)')
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
@@ -280,6 +306,7 @@ parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input 
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_collate)
 
 
@@ -287,20 +314,21 @@ parser_sub.set_defaults(func=main_collate)
 
 
 # Update database #
-parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser_sub.add_argument('--repo','-r',default="https://github.com/ntm-db/ntm-db.git",help='Repository to pull from')
 parser_sub.add_argument('--branch','-b',default="master",help='Storage directory')
 parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (default: latest)')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_update_db)
 
 
 
 
 # Create resistance DB #
-parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the files required to run resistance profiling with NTM-Profiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the files required to run resistance profiling with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database (match species name for automated speciation+resistance detection)',required = True)
 parser_sub.add_argument('--csv','-c',type=str,help='The CSV file containing mutations')
 parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
@@ -317,15 +345,15 @@ parser_sub.add_argument('--include_original_mutation',action="store_true", help=
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=create_resistance_db)
 
 
 
-parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run speciation with NTM-Profiler', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run speciation with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
-parser_sub.add_argument('--kmers',type=str,help='The file containing species specific kmers',required = True)
-parser_sub.add_argument('--mash_db',type=str,help='The file containing species specific kmers',required = True)
-parser_sub.add_argument('--mash_db_info',type=str,help='The file containing species specific kmers',required = True)
+parser_sub.add_argument('--sourmash_db',type=str,help='The file containing species sourmash',required = True)
+parser_sub.add_argument('--accessions',type=str,help='The file containing map from accessions to species',required = True)
 parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
 parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
 parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
@@ -334,17 +362,24 @@ parser_sub.add_argument('--db-date',help='Overrides the date of the database in 
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=create_species_db)
 
-parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--no_clean', action='store_true',help=argparse.SUPPRESS)
 parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_list_db)
 
 
 args = parser.parse_args()
+
+logging.basicConfig(
+    level=args.logging, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+)
+
 if hasattr(args, 'func'):
     args.software_name = __softwarename__
     args.tmp_prefix = str(uuid4())
