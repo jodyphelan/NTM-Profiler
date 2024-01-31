@@ -11,35 +11,7 @@ def get_species(args: argparse.Namespace) -> SpeciesPrediction:
         return pp.set_species(args)
     else:
         return pp.get_sourmash_species_prediction(args)
-    
 
-
-def test_resistance_genes(conf,results):
-    resistance_genes = {}
-    db = conf["json_db"]
-    for gene in db:
-        if "functionally_normal" in db[gene]:
-            resistance_genes[gene] = db[gene]["functionally_normal"]
-    lof = ["large_deletion","frameshift_variant"]
-    for var in results["variants"]:
-        for csq in var["consequences"]:
-            if "annotation" in csq:
-                for ann in csq["annotation"]:
-                    if "interaction" in ann:
-                        if "Override" in ann["interaction"]:
-                            gene,type = ann["interaction"].split("=")[1].split(":")
-                            if type=="functionally_normal" and gene in resistance_genes:
-                                del resistance_genes[gene]
-    results = []
-    for gene in resistance_genes:
-        res = {
-            "class":"gene",
-            "gene_id":gene,
-            "annotations":resistance_genes[gene]["annotations"],
-            "type":"resistance_gene_present"    
-        }
-        results.append(res)
-    return results
 
 
 def summarise_sourmash_hits(sourmash_hits):
