@@ -226,7 +226,7 @@ def collate(args):
             'id': s
         }
         
-        top_species_hit = result.species.species[0]
+        top_species_hit = result.species.species[0] if len(result.species.species)>0 else None
         row['species'] =  top_species_hit.species
         row['closest-sequence'] = top_species_hit.prediction_info.get('accession')
         row['ANI'] = top_species_hit.prediction_info.get('ani')
