@@ -93,13 +93,16 @@ def main_profile(args):
 
 
     species_prediction = ntmp.get_species(args) 
-    if len(species_prediction.species)==0:
-        raise Exception("No species prediction was made")
+    # if len(species_prediction.species)==0:
+        
     
     args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     
     if args.conf is None:
-        logging.info("No resistance database found for %s" % species_prediction.species[0].species)
+        if len(species_prediction.species)>0:
+            logging.info("No resistance database found for %s" % species_prediction.species[0].species)
+        else:
+            logging.warning("No species prediction was made")
         result = ntmp.create_species_result(args.prefix,species_prediction)
         ntmp.write_outputs(args,result)
         remove_temp_files(args.files_prefix)

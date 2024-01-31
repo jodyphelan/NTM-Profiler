@@ -3,9 +3,10 @@ import json
 from uuid import uuid4
 import pathogenprofiler as pp
 import argparse
+from pathogenprofiler.models import SpeciesPrediction
 
 
-def get_species(args: argparse.Namespace):
+def get_species(args: argparse.Namespace) -> SpeciesPrediction:
     if args.resistance_db:
         return pp.set_species(args)
     else:
