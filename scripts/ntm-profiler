@@ -11,17 +11,21 @@ import atexit
 import logging
 from rich_argparse import ArgumentDefaultsRichHelpFormatter
 from rich.logging import RichHandler
-import requests
 
 __softwarename__ = "ntm-profiler"
+
+def remove_temp_files(prefix):
+    if len(glob.glob(f"{prefix}*"))>0:
+        for f in glob.glob(args.files_prefix+"*"):
+            pp.run_cmd(f"rm -r {f}")
 
 @atexit.register
 def cleanup():
     if "last_traceback" in vars(sys):
-        if args.files_prefix and not args.no_clean:
+        logging.debug(args.no_cleanup)
+        if args.files_prefix and not args.no_cleanup:
             sys.stderr.write("Cleaning up after failed run\n")
-            for f in glob.glob(args.files_prefix+"*"):
-                pp.run_cmd(f"rm -r {f}")
+            remove_temp_files(args.files_prefix)
         import traceback
         
         if "prefix" in vars(args):
@@ -37,7 +41,7 @@ def cleanup():
             O.write("* OS: %s\n" % sys.platform)
             O.write("* ntm-profiler version: %s\n" % ntmp.__version__)
             O.write("* pathogen-profiler version: %s\n" % pp.__version__)
-            O.write("* Database version: %s\n" % args.conf["version"]["commit"]) if "conf" in vars(args) else ""
+            O.write("* Database version: %s\n" % args.conf["version"]) if "conf" in vars(args) else ""
             O.write("* Program call:\n")
             O.write("```\n")
             O.write("%s\n" % vars(args))
@@ -66,6 +70,8 @@ contents of the error log (%s)
 
 
 def main_profile(args):
+
+    pp.process_args(args)
     if args.external_resistance_db:
         args.resistance_db = args.external_resistance_db
     if args.external_species_db:
@@ -79,70 +85,69 @@ def main_profile(args):
     if args.vcf:
         args.run_species = False
         if not args.resistance_db:
-            pp.logging.error(
+            logging.error(
                 "\nSpeciation can't be perfomrmed on a VCF file so a resistance database is needed. "
                 "Specify with --resistance_db or --external_resistance_db\n",
-                ext=True
             )
     
-    results = {
-        "id":args.prefix,
-        "software_version":ntmp.__version__,
-        "pipeline_software":[]
-    }
-    
-    if args.run_species:
-        sourmash_species_prediction = ntmp.get_sourmash_hit(args)
-        species_summary = ntmp.summarise_sourmash_hits(sourmash_species_prediction)
-        results["species"] = {
-            "prediction_method":"sourmash",
-            "prediction":species_summary,
-            "prediction_info":sourmash_species_prediction,
-            "species_db_version":args.species_conf["version"]
-        }
-    else:
-        species_prediction = None
-    
 
-    if args.species_only:
-        args.conf = None
-        ntmp.write_outputs(args,results)
-        pp.run_cmd(f"rm {args.files_prefix}*")
-        pp.successlog("Species prediction finished!")
-        quit(0)
 
-    if args.vcf:
-        args.conf = pp.get_db(__softwarename__,args.resistance_db)
-    else:
-        args.conf = pp.get_resistance_db_from_species_prediction(args,results["species"]["prediction"])
+    species_prediction = ntmp.get_species(args) 
+    if len(species_prediction.species)==0:
+        raise Exception("No species prediction was made")
+    
+    args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     
     if args.conf is None:
-        if results["species"]["prediction"] is None:
-            pp.logging.error("No species prediction was made")
-        ntmp.write_outputs(args,results)
-        if len(glob.glob(f"{args.files_prefix}*"))>0:
-            pp.run_cmd(f"rm {args.files_prefix}*")
+        logging.info("No resistance database found for %s" % species_prediction.species[0].species)
+        result = ntmp.create_species_result(args.prefix,species_prediction)
+        ntmp.write_outputs(args,result)
+        remove_temp_files(args.files_prefix)
         quit(0)
     
-    args = pp.set_platform_params(args)
+
     
 
-    args.conf['variant_filters'] = pp.get_variant_filters(args)
-    results.update(pp.run_profiler(args))
-
-
-    results["resistance_genes"] = ntmp.test_resistance_genes(args.conf,results)
     
+    pp.process_args(args)
 
-    results["pipeline_software"].extend([
-        {"Analysis":"Mapping","Program": args.mapper if not args.bam else "N/A"},
-        {"Analysis":"Variant calling","Program":args.caller}
-    ])
-    results["resistance_db_version"] = args.conf["version"]
+    variants_profile = pp.run_profiler(args)
+    if 'rules' in args.conf:
+        rules_applied = pp.apply_rules(args.conf['rules'], variants_profile)
+    else:
+        rules_applied = []
 
-    results = ntmp.reformat(results,args.conf)
+    # Convert variant objects to DrVariant if they cause resistance
+    for var in variants_profile:
+        var.convert_to_dr_element()
 
-    ntmp.write_outputs(args,results)
+    barcode_result = pp.run_barcoder(args)
+
+    if args.data_source=="bam":
+        qc = pp.run_bam_qc(args)
+    elif args.data_source=="fasta":
+        qc = pp.run_fasta_qc(args)
+    else:
+        qc = None
+
+
+    notes = []
+    for rule in rules_applied:
+        notes.append(f"Rule applied: {rule}")
+    result = ntmp.create_resistance_result(
+        id=args.prefix,
+        species=species_prediction,
+        genetic_elements=variants_profile,
+        barcode=barcode_result,
+        qc=qc,
+        notes = notes
+
+    )
+
+
+    
+    # print(summary)
+    ntmp.write_outputs(args,result)
 
     ### Move files to respective directories ###
     result_files = {
@@ -210,10 +215,10 @@ def main_update_db(args):
     for d in dirs:
         logging.debug(f"Moving to {d}")
         os.chdir(d)
-        for species in json.load(open('variables.json'))['species']:
-            logging.info(f'\nCreating DB for {species}')
-            barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
-            pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv resistance_variants.csv {barcode_arg} --load')
+        species = json.load(open('variables.json'))['species']
+        logging.info(f'\nCreating DB for {species}')
+        barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
+        pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
         os.chdir('../')
 
 def main_list_db(args):
@@ -268,16 +273,18 @@ filtering.add_argument('--sv_len',default="100000,50000",type=str,help='Structur
 
 algorithm=parser_sub.add_argument_group("Algorithm options")
 algorithm.add_argument('--mapper',default="bwa", choices=["bwa","minimap2","bowtie2","bwa-mem2"],help="Mapping tool to use. If you are using nanopore data it will default to minimap2",type=str)
-algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use.",type=str)
-algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use.",type=str)
+algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
+algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use",type=str)
+algorithm.add_argument('--coverage_tool',default="samtools", choices=["bedtools","samtools"],help="Coverage  tool to use",type=str)
 algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
 algorithm.add_argument('--species_only',action="store_true",help="Predict species and quit")
 algorithm.add_argument('--no_species',action="store_false",dest="run_species",help="Skip species prediction")
 algorithm.add_argument('--no_trim',action="store_true",help="Don't trim files using trimmomatic")
-algorithm.add_argument('--no_flagstat',action="store_true",help="Don't collect flagstats")
+algorithm.add_argument('--no_coverage_qc',action="store_true",help="Don't collect coverage statistics")
 algorithm.add_argument('--no_clip',action="store_false",help="Don't clip reads")
 algorithm.add_argument('--no_delly',action="store_true",help="Don't run delly")
 algorithm.add_argument('--no_mash',action="store_true",help="Don't run mash if kmers speciation fails")
+algorithm.add_argument('--no_samclip',action="store_true",help="Don't run mash if kmers speciation fails")
 algorithm.add_argument('--output_kmer_counts',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--add_variant_annotations',action="store_true",help=argparse.SUPPRESS)
 algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
@@ -382,6 +389,7 @@ logging.basicConfig(
 
 if hasattr(args, 'func'):
     args.software_name = __softwarename__
+    args.software_version = ntmp.__version__
     args.tmp_prefix = str(uuid4())
     
     
