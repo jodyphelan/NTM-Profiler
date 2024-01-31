@@ -227,10 +227,14 @@ def collate(args):
         }
         
         top_species_hit = result.species.species[0] if len(result.species.species)>0 else None
-        row['species'] =  top_species_hit.species
-        row['closest-sequence'] = top_species_hit.prediction_info.get('accession')
-        row['ANI'] = top_species_hit.prediction_info.get('ani')
-
+        if top_species_hit:
+            row['species'] =  top_species_hit.species
+            row['closest-sequence'] = top_species_hit.prediction_info.get('accession')
+            row['ANI'] = top_species_hit.prediction_info.get('ani')
+        else:
+            row['species'] =  None
+            row['closest-sequence'] = None
+            row['ANI'] = None
         if isinstance(result, ProfileResult):
             variant_db.add_result(result)
             row['barcode'] = ";".join([x.id for x in result.barcode]) 
