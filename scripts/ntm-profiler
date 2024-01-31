@@ -126,14 +126,14 @@ def main_profile(args):
 
     barcode_result = pp.run_barcoder(args)
 
-    if args.data_source=="bam":
+    if args.data_source in ('bam','fastq'):
         qc = pp.run_bam_qc(args)
     elif args.data_source=="fasta":
         qc = pp.run_fasta_qc(args)
     else:
-        qc = None
+        qc = pp.run_vcf_qc(args)
 
-
+    print(qc)
     notes = []
     for rule in rules_applied:
         notes.append(f"Rule applied: {rule}")
