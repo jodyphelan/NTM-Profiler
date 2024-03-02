@@ -18,7 +18,6 @@ def write_outputs(args,result: ProfileResult):
     json_output = args.dir+"/"+args.prefix+".results.json"
     text_output = args.dir+"/"+args.prefix+".results.txt"
     csv_output = args.dir+"/"+args.prefix+".results.csv"
-    extra_columns = [x.lower() for x in args.add_columns.split(",")] if args.add_columns else []
     logging.info(f"Writing json file: {json_output}")
     open(json_output,"w").write(result.model_dump_json())
 
