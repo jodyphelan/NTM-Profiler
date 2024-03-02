@@ -343,7 +343,7 @@ parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the fi
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database (match species name for automated speciation+resistance detection)',required = True)
 parser_sub.add_argument('--csv','-c',type=str,help='The CSV file containing mutations')
 parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
-parser_sub.add_argument('--watchlist','-w',type=str,help='A csv file containing genes to profile but without any specific associated mutations')
+parser_sub.add_argument('--watchlist','-w',default="gene_watchlist.csv",type=str,help='A csv file containing genes to profile but without any specific associated mutations')
 parser_sub.add_argument('--barcode',type=str,help='A bed file containing lineage barcode SNPs')
 parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
