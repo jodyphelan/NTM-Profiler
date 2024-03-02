@@ -298,6 +298,7 @@ other.add_argument('--verbose',default=0, choices=[0,1,2],help="Verbosity increa
 other.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 other.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
+other.add_argument('--supplementary_bam',help=argparse.SUPPRESS)
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
 other.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_profile)
