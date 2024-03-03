@@ -133,7 +133,7 @@ def main_profile(args):
     else:
         qc = pp.run_vcf_qc(args)
 
-    print(qc)
+
     notes = []
     for rule in rules_applied:
         notes.append(f"Rule applied: {rule}")
@@ -149,7 +149,7 @@ def main_profile(args):
 
 
     
-    # print(summary)
+
     ntmp.write_outputs(args,result)
 
     ### Move files to respective directories ###
