@@ -195,7 +195,7 @@ def main_update_db(args):
     if os.path.isdir(dirname):
         logging.debug(f"Directory {dirname} exists, pulling latest version")
         os.chdir(dirname)
-        pp.run_cmd('git pull')
+        # pp.run_cmd('git pull')
         os.chdir('db/')
     else:
         logging.debug(f"Directory {dirname} does not exist, cloning repo")
@@ -207,7 +207,7 @@ def main_update_db(args):
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
         
-    pp.run_cmd("zip -F species/sourmash-split.zip --out species/sourmash.sbt.zip")
+    pp.run_cmd("cat species/sourmash-split.* --out species/sourmash.sbt.zip")
 
 
     pp.logging.info('\nCreating species DB')
@@ -227,8 +227,15 @@ def main_update_db(args):
 def main_list_db(args):
     dbs = pp.list_db(args.software_name)
     for db in dbs:
-        db['location'] = f"{sys.base_prefix}/share/{args.software_name}/{db['name']}"
-        sys.stdout.write("%(name)s\t%(commit)s\t%(Author)s\t%(Date)s\t%(location)s\n" % db)
+        obj = {
+            'name': db['version'].get('name'),
+            'location': f"{sys.base_prefix}/share/{args.software_name}/{db['version']['name']}",
+            'commit': db['version'].get('commit'),
+            'author': db['version'].get('Author'),
+            'date': db['version'].get('Date')
+        }
+
+        sys.stdout.write("%(name)s\t%(commit)s\t%(author)s\t%(date)s\t%(location)s\n" % obj)
 
 
 
