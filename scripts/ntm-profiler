@@ -207,7 +207,7 @@ def main_update_db(args):
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
         
-    pp.run_cmd("cat species/sourmash-split.* --out species/sourmash.sbt.zip")
+    pp.run_cmd("cat species/sourmash-split.* > species/sourmash.sbt.zip")
 
 
     pp.logging.info('\nCreating species DB')
