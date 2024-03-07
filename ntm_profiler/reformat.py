@@ -3,8 +3,6 @@ from .models import SpeciesResult, ProfileResult
 from typing import List, Union
 
 def split_variants_on_filter(elements):
-    print("*"*80)
-    print(elements)
     dr_genes = []
     other_genes = []
     dr_variants = []

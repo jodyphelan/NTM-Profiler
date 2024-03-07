@@ -249,10 +249,10 @@ def collate(args):
 
         rows.append(row) 
 
-    print(drug_resistance_results)
+
 
     drugs = sorted(list(set([x['drug'] for x in drug_resistance_results])))
-    print(drugs)
+
 
     for row in rows:
         for drug in drugs:
