@@ -103,7 +103,8 @@ def main_profile(args):
             logging.info("No resistance database found for %s" % species_prediction.species[0].species)
         else:
             logging.warning("No species prediction was made")
-        result = ntmp.create_species_result(args.prefix,species_prediction)
+        qc = pp.get_fastq_qc(args)
+        result = ntmp.create_species_result(args.prefix,species_prediction,qc)
         ntmp.write_outputs(args,result)
         remove_temp_files(args.files_prefix)
         quit(0)

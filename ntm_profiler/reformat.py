@@ -1,4 +1,4 @@
-from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVariant, SpeciesPrediction, BamQC, FastaQC
+from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVariant, SpeciesPrediction, BamQC, FastaQC, FastqQC
 from .models import SpeciesResult, ProfileResult
 from typing import List, Union
 
@@ -29,10 +29,12 @@ def split_variants_on_filter(elements):
 def create_species_result(
     id: str,
     species: SpeciesPrediction,
+    qc: FastqQC
 ) -> SpeciesResult:
     return SpeciesResult(
         id=id,
-        species=species
+        species=species,
+        qc= qc
     )
 
 
