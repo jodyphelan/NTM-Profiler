@@ -133,7 +133,7 @@ def write_text(
     text_strings = {}
     text_strings["id"] = result.id
     text_strings["date"] = time.ctime()
-    text_strings['sourmash_species_report'] = pp.dict_list2text([d.prediction_info for d in result.species.species],mappings={"species":"Species","accession":"Accession","ani":"ANI","abundance":"Abundance"},sep=sep)
+    text_strings['sourmash_species_report'] = pp.dict_list2text([d.prediction_info for d in result.species.species],mappings={"species":"Species","accession":"Accession","ani":"ANI","abundance":"Abundance","relative_abundance":"Relative abundance"},sep=sep)
     
 
 
