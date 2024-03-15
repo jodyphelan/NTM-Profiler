@@ -8,10 +8,12 @@ class Result(BaseModel):
     id: str
 
 class SpeciesResult(Result):
+    result_type: str = 'Species'
     species: SpeciesPrediction
     qc: Union[FastqQC,FastaQC]
 
 class ProfileResult(SpeciesResult):
+    result_type: str = 'Profile'
     notes: List[str] = []
     resistance_db: dict = {}
     barcode: Optional[List[BarcodeResult]] = []
