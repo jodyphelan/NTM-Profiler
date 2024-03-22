@@ -1,31 +1,62 @@
-import pathogenprofiler as pp
+from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVariant, SpeciesPrediction, BamQC, FastaQC, FastqQC
+from .models import SpeciesResult, ProfileResult
+from typing import List, Union
 
-def reformat_resistance_genes(results):
-    for d in results["resistance_genes"]:
-        d["drugs"] = d["annotations"]
-        del d["annotations"]
-    return results
+def split_variants_on_filter(elements):
+    dr_genes = []
+    other_genes = []
+    dr_variants = []
+    other_variants = []
+    fail_variants = []
+    for e in elements:
+        if isinstance(e, (Variant,DrVariant)):
+            if e.filter.upper() != "PASS":
+                fail_variants.append(e)
+            else:
+                if isinstance(e, DrVariant):
+                    dr_variants.append(e)
+                else:
+                    other_variants.append(e)
+        elif isinstance(e, (Gene,DrGene)):
+            if isinstance(e, DrGene):
+                dr_genes.append(e)
+            else:
+                other_genes.append(e)
+    return dr_genes, other_genes, dr_variants, other_variants, fail_variants
 
-def add_subspecies(results):
-    if "barcode" in results:
-        subspecies_found = [d['annotation'] for d in results["barcode"] if d['annotation'].startswith("subsp.")]
-        if len(subspecies_found)>0:
-            subspecies_list = [results["species"]["prediction"] + " "+ d for d in subspecies_found]
-            results["species"]["prediction"] = ";".join(subspecies_list)
 
 
-def reformat(results,conf):
-    results["variants"] = [x for x in results["variants"] if len(x["consequences"])>0]
-    results["variants"] = pp.select_csq(results["variants"])
-    results["variants"] = pp.dict_list_add_genes(results["variants"],conf)
-    results["resistance_genes"] = pp.dict_list_add_genes(results["resistance_genes"],conf)
-    results = reformat_resistance_genes(results)
-    results = pp.reformat_annotations(results,conf)
+def create_species_result(
+    id: str,
+    species: SpeciesPrediction,
+    qc: FastqQC
+) -> SpeciesResult:
+    return SpeciesResult(
+        id=id,
+        species=species,
+        qc= qc
+    )
 
-    if "region_qc" in results["qc"]:
-        results["qc"]["region_qc"] = pp.dict_list_add_genes(results["qc"]["region_qc"],conf,key="region")
-    if "missing_positions" in results["qc"]:
-        results["qc"]["missing_positions"] = pp.reformat_missing_genome_pos(results["qc"]["missing_positions"],conf)
-    
-    add_subspecies(results)
-    return results
+
+
+def create_resistance_result(
+    id: str,
+    species: SpeciesPrediction,
+    genetic_elements: List[Union[Gene, Variant, DrGene, DrVariant]],
+    barcode: BarcodeResult,
+    qc: Union[BamQC, FastaQC],
+    notes: List[str]
+) -> ProfileResult:
+    dr_genes, other_genes, dr_variants, other_variants, fail_variants = split_variants_on_filter(genetic_elements)
+    data = {
+        'id':id,
+        'notes':notes,
+        'dr_genes':dr_genes,
+        'other_genes':other_genes,
+        'dr_variants':dr_variants,
+        'other_variants':other_variants,
+        'fail_variants':fail_variants,
+        'species':species,
+        'barcode':barcode
+    }
+    return ProfileResult(**data, qc=qc)

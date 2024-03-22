@@ -2,60 +2,22 @@ import sys
 import json
 from uuid import uuid4
 import pathogenprofiler as pp
+import argparse
+from pathogenprofiler.models import SpeciesPrediction
+
+def check_for_databases(args: argparse.Namespace):
+    if len(pp.list_db(args.software_name))<1:
+        sys.stderr.write('No databases found... please run `ntm-profiler update_db`\n')
+        quit(1)
 
 
-def test_resistance_genes(conf,results):
-    resistance_genes = {}
-    db = conf["json_db"]
-    for gene in db:
-        if "functionally_normal" in db[gene]:
-            resistance_genes[gene] = db[gene]["functionally_normal"]
-    lof = ["large_deletion","frameshift_variant"]
-    for var in results["variants"]:
-        for csq in var["consequences"]:
-            if "annotation" in csq:
-                for ann in csq["annotation"]:
-                    if "interaction" in ann:
-                        if "Override" in ann["interaction"]:
-                            gene,type = ann["interaction"].split("=")[1].split(":")
-                            if type=="functionally_normal" and gene in resistance_genes:
-                                del resistance_genes[gene]
-    results = []
-    for gene in resistance_genes:
-        res = {
-            "gene_id":gene,
-            "annotations":resistance_genes[gene]["annotations"],
-            "type":"resistance_gene_present"    
-        }
-        results.append(res)
-    return results
+def get_species(args: argparse.Namespace) -> SpeciesPrediction:
+    if args.resistance_db:
+        return pp.set_species(args)
+    else:
+        return pp.get_sourmash_species_prediction(args)
 
 
-def get_sourmash_hit(args):
-    args.species_conf = pp.get_db(args.software_name,args.species_db)
-    if args.read1:
-        if args.read2:
-            fastq = pp.Fastq(args.read1,args.read2)
-        else:
-            fastq = pp.Fastq(args.read1)
-        sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
-    elif args.fasta:
-        pp.run_cmd(f"mash dist {args.species_conf['sourmash_db']} {args.fasta} | sort -gk3 | head > {args.files_prefix}.mash_dist.txt")
-        fasta = pp.Fasta(args.fasta)
-        sourmash_sig = fasta.sourmash_sketch(args.files_prefix)
-    elif args.bam:
-        pp.run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.tmp.fastq")
-        fq_file = f"{args.files_prefix}.tmp.fastq"
-        fastq = pp.Fastq(fq_file)
-        sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
-
-    sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],intersect_bp=2500000,f_match_threshold=0.1)
-    result =  []
-
-    if len(sourmash_sig)>0:
-        result = sourmash_sig
-    
-    return result
 
 def summarise_sourmash_hits(sourmash_hits):
     species = []

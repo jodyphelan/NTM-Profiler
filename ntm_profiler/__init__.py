@@ -1,5 +1,5 @@
 from .utils import *
 from .output import *
 from .reformat import *
-from .db import *
-__version__="0.3.0"
+
+__version__="0.4.0"
