@@ -404,8 +404,9 @@ if hasattr(args, 'func'):
     args.software_version = ntmp.__version__
     args.tmp_prefix = str(uuid4())
     
-    if len(pp.list_db(args.software_name))<1:
+    if len(pp.list_db(args.software_name))<1 and args.func != main_update_db:
         sys.stderr.write('No databases found... please run `ntm-profiler update_db`\n')
+        quit(1)
     
     args.files_prefix = f"{args.temp}/{args.tmp_prefix}"
 
