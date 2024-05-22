@@ -225,11 +225,11 @@ def collate(args):
             'id': s
         }
         
-        top_species_hit = result.species.species[0] if len(result.species.species)>0 else None
-        if top_species_hit:
-            row['species'] =  top_species_hit.species
-            row['closest-sequence'] = top_species_hit.prediction_info.get('accession')
-            row['ANI'] = top_species_hit.prediction_info.get('ani')
+        # top_species_hit = result.species.species[0] if len(result.species.species)>0 else None
+        if len(result.species.species)>0:
+            row['species'] =  ";".join([hit.species for hit in result.species.species])
+            row['closest-sequence'] = ";".join([hit.prediction_info['accession'] for hit in result.species.species])
+            row['ANI'] = ";".join([str(hit.prediction_info['ani']) for hit in result.species.species])
         else:
             row['species'] =  None
             row['closest-sequence'] = None
