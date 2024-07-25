@@ -95,7 +95,6 @@ def main_profile(args):
 
 
     species_prediction = ntmp.get_species(args) 
-    # if len(species_prediction.species)==0:
         
     
     args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
@@ -106,8 +105,13 @@ def main_profile(args):
         else:
             logging.warning("No species prediction was made")
         if args.bam:
-            args.read1 = args.files_prefix+".tmp.fastq"
-        qc = pp.get_fastq_qc(args)
+            qc = pp.run_bam_qc(args)
+        elif args.data_source == 'fastq':
+            qc = pp.get_fastq_qc(args)
+        elif args.data_source=="fasta":
+            qc = pp.run_fasta_qc(args)
+        else:
+            qc = pp.run_vcf_qc(args)
         result = ntmp.create_species_result(args.prefix,species_prediction,qc)
         ntmp.write_outputs(args,result)
         remove_temp_files(args.files_prefix)
@@ -201,13 +205,12 @@ def main_update_db(args):
     if os.path.isdir(dirname):
         logging.debug(f"Directory {dirname} exists, pulling latest version")
         os.chdir(dirname)
-        # pp.run_cmd('git pull')
+        pp.run_cmd('git pull')
         os.chdir('db/')
     else:
         logging.debug(f"Directory {dirname} does not exist, cloning repo")
         pp.run_cmd(f'git clone {args.repo}')
         os.chdir(f'{dirname}/db/')
-        # 
         pp.run_cmd(f'git checkout {args.branch}')
     
     if args.commit:
