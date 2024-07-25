@@ -19,7 +19,7 @@ def write_outputs(args,result: ProfileResult):
     text_output = args.dir+"/"+args.prefix+".results.txt"
     csv_output = args.dir+"/"+args.prefix+".results.csv"
     logging.info(f"Writing json file: {json_output}")
-    open(json_output,"w").write(result.model_dump_json())
+    open(json_output,"w").write(result.model_dump_json(indent=4))
 
     if args.txt:
         logging.info(f"Writing text file: {text_output}")
