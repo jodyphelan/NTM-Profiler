@@ -14,8 +14,8 @@ class SpeciesResult(Result):
 
 class ProfileResult(SpeciesResult):
     result_type: str = 'Profile'
+    resistance_db: dict
     notes: List[str] = []
-    resistance_db: dict = {}
     barcode: Optional[List[BarcodeResult]] = []
     dr_variants: List[DrVariant] = []
     dr_genes: List[DrGene] = []

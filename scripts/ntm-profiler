@@ -152,7 +152,8 @@ def main_profile(args):
         genetic_elements=variants_profile,
         barcode=barcode_result,
         qc=qc,
-        notes = notes
+        notes = notes,
+        resistance_db=args.conf['version']
 
     )
 

@@ -45,11 +45,13 @@ def create_resistance_result(
     genetic_elements: List[Union[Gene, Variant, DrGene, DrVariant]],
     barcode: BarcodeResult,
     qc: Union[BamQC, FastaQC],
-    notes: List[str]
+    notes: List[str],
+    resistance_db: dict
 ) -> ProfileResult:
     dr_genes, other_genes, dr_variants, other_variants, fail_variants = split_variants_on_filter(genetic_elements)
     data = {
         'id':id,
+        'resistance_db':resistance_db,
         'notes':notes,
         'dr_genes':dr_genes,
         'other_genes':other_genes,
