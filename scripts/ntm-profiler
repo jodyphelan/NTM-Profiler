@@ -11,8 +11,11 @@ import atexit
 import logging
 from rich_argparse import ArgumentDefaultsRichHelpFormatter
 from rich.logging import RichHandler
+from packaging.version import Version
 
 __softwarename__ = "ntm-profiler"
+__compatible_resistance_db_schema__ = Version("1.0.0")
+__compatible_species_db_schema__ = Version("1.0.0")
 
 def remove_temp_files(prefix):
     if len(glob.glob(f"{prefix}*"))>0:
@@ -95,17 +98,27 @@ def main_profile(args):
 
 
     species_prediction = ntmp.get_species(args) 
-    # if len(species_prediction.species)==0:
+
+
         
-    
-    args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
+    if args.resistance_db:
+        args.conf = pp.get_db(args.software_name,args.resistance_db,verbose=False)
+    else:
+        args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     
     if args.conf is None:
         if len(species_prediction.species)>0:
             logging.info("No resistance database found for %s" % species_prediction.species[0].species)
         else:
             logging.warning("No species prediction was made")
-        qc = pp.get_fastq_qc(args)
+        if args.bam:
+            qc = pp.run_bam_qc(args)
+        elif args.data_source == 'fastq':
+            qc = pp.get_fastq_qc(args)
+        elif args.data_source=="fasta":
+            qc = pp.run_fasta_qc(args)
+        else:
+            qc = pp.run_vcf_qc(args)
         result = ntmp.create_species_result(args.prefix,species_prediction,qc)
         ntmp.write_outputs(args,result)
         remove_temp_files(args.files_prefix)
@@ -146,7 +159,8 @@ def main_profile(args):
         genetic_elements=variants_profile,
         barcode=barcode_result,
         qc=qc,
-        notes = notes
+        notes = notes,
+        resistance_db=args.conf['version']
 
     )
 
@@ -171,10 +185,25 @@ def main_profile(args):
     pp.run_cmd(f"rm {args.files_prefix}*")
 
 
-
+def check_db_schema_version():
+    current_path = os.getcwd()
+    variables_filename = os.path.join(current_path, 'variables.json')
+    if not os.path.isfile(variables_filename):
+        logging.error(f"Could not find {variables_filename}")
+        quit(1)
+    variables = json.load(open(variables_filename))
+    if 'db-schema-version' not in variables:
+        logging.error(f"Could not find 'db-schema-version' in {variables_filename}")
+        quit(1)
+    db_schema_version = Version(variables['db-schema-version'])
+    if db_schema_version.major != __compatible_resistance_db_schema__.major:
+        logging.error(f"Database schema version {db_schema_version} from {variables_filename} is not compatible with this version of NTM-Profiler (requires {__compatible_resistance_db_schema__}). Please update the database")
+        quit(1)
 
 
 def create_species_db(args):
+    check_db_schema_version()
+
     extra_files = {
         "sourmash_db":args.sourmash_db,
         "sourmash_db_info":args.accessions
@@ -182,6 +211,8 @@ def create_species_db(args):
     pp.create_species_db(args,extra_files = extra_files)
 
 def create_resistance_db(args):
+    check_db_schema_version()
+
     extra_files = {}
     if args.barcode:
         extra_files["barcode"] = args.barcode
@@ -199,13 +230,12 @@ def main_update_db(args):
     if os.path.isdir(dirname):
         logging.debug(f"Directory {dirname} exists, pulling latest version")
         os.chdir(dirname)
-        # pp.run_cmd('git pull')
+        pp.run_cmd('git pull')
         os.chdir('db/')
     else:
         logging.debug(f"Directory {dirname} does not exist, cloning repo")
         pp.run_cmd(f'git clone {args.repo}')
         os.chdir(f'{dirname}/db/')
-        # 
         pp.run_cmd(f'git checkout {args.branch}')
     
     if args.commit:

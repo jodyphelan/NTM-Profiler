@@ -3,8 +3,10 @@ from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVari
 from pydantic import BaseModel
 from typing import List, Optional,  Union
 
+__model_schema_version__ = '1.0.0'
 
 class Result(BaseModel):
+    schema_version: str = __model_schema_version__
     id: str
 
 class SpeciesResult(Result):
@@ -14,8 +16,8 @@ class SpeciesResult(Result):
 
 class ProfileResult(SpeciesResult):
     result_type: str = 'Profile'
+    resistance_db: dict
     notes: List[str] = []
-    resistance_db: dict = {}
     barcode: Optional[List[BarcodeResult]] = []
     dr_variants: List[DrVariant] = []
     dr_genes: List[DrGene] = []

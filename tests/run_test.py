@@ -28,11 +28,13 @@ def test_profile():
     assert result["dr_genes"] == example["dr_genes"]
     assert get_variants(example,"dr_variants")== get_variants(result,"dr_variants")
     assert get_variants(example,"other_variants")== get_variants(result,"other_variants")
+    assert len(result['barcode']) == 1
+    assert result['barcode'][0]['id'] == example['barcode'][0]['id']
 
 def test_profile_unknown():
     run_cmd("ntm-profiler profile -1 ~/test_data/DRR332975_1.fastq.gz -2 ~/test_data/DRR332975_2.fastq.gz  -p DRR332975 -t 3 --txt --csv")
     result = json.load(open("DRR332975.results.json"))
-    assert result['species']['prediction'] == ''
+    assert len(result['species']['species']) == 0
 
 # def test_clean():
 #     os.chdir("../")
