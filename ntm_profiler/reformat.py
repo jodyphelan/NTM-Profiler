@@ -1,6 +1,8 @@
 from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVariant, SpeciesPrediction, BamQC, FastaQC, FastqQC
-from .models import SpeciesResult, ProfileResult
+from .models import SpeciesResult, ProfileResult, Pipeline
 from typing import List, Union
+import argparse
+from pathogenprofiler.utils import shared_dict
 
 def split_variants_on_filter(elements):
     dr_genes = []
@@ -25,21 +27,32 @@ def split_variants_on_filter(elements):
     return dr_genes, other_genes, dr_variants, other_variants, fail_variants
 
 
+def get_pipeline_object(args: argparse.Namespace) -> Pipeline:
+    return Pipeline(
+        software_version=args.software_version,
+        species_db_version=args.species_db_conf['version'] if args.species_db_conf else None,
+        resistance_db_version=args.conf['version'] if args.conf else None,
+        software=[{'process':k,'software':v} for k,v in shared_dict.items()]
+    )
 
 def create_species_result(
+    args: argparse.Namespace,
     id: str,
     species: SpeciesPrediction,
     qc: FastqQC
 ) -> SpeciesResult:
+    pipeline = get_pipeline_object(args)
     return SpeciesResult(
         id=id,
         species=species,
-        qc= qc
+        qc= qc,
+        pipeline=pipeline
     )
 
 
 
 def create_resistance_result(
+    args: argparse.Namespace,
     id: str,
     species: SpeciesPrediction,
     genetic_elements: List[Union[Gene, Variant, DrGene, DrVariant]],
@@ -48,6 +61,8 @@ def create_resistance_result(
     notes: List[str],
     resistance_db: dict
 ) -> ProfileResult:
+    
+    pipeline = get_pipeline_object(args)
     dr_genes, other_genes, dr_variants, other_variants, fail_variants = split_variants_on_filter(genetic_elements)
     data = {
         'id':id,
@@ -59,6 +74,7 @@ def create_resistance_result(
         'other_variants':other_variants,
         'fail_variants':fail_variants,
         'species':species,
-        'barcode':barcode
+        'barcode':barcode,
+        'pipeline':pipeline
     }
     return ProfileResult(**data, qc=qc)

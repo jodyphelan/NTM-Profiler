@@ -96,7 +96,7 @@ def main_profile(args):
             )
     
 
-
+    args.species_db_conf = pp.get_db(args.software_name,args.species_db,verbose=False)
     species_prediction = ntmp.get_species(args) 
 
 
@@ -119,7 +119,7 @@ def main_profile(args):
             qc = pp.run_fasta_qc(args)
         else:
             qc = pp.run_vcf_qc(args)
-        result = ntmp.create_species_result(args.prefix,species_prediction,qc)
+        result = ntmp.create_species_result(args,args.prefix,species_prediction,qc)
         ntmp.write_outputs(args,result)
         remove_temp_files(args.files_prefix)
         quit(0)
@@ -154,6 +154,7 @@ def main_profile(args):
     for rule in rules_applied:
         notes.append(f"Rule applied: {rule}")
     result = ntmp.create_resistance_result(
+        args=args,
         id=args.prefix,
         species=species_prediction,
         genetic_elements=variants_profile,

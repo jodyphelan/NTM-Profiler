@@ -3,10 +3,29 @@ from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVari
 from pydantic import BaseModel
 from typing import List, Optional,  Union
 
-__model_schema_version__ = '1.0.0'
+__model_schema_version__ = '1.1.0'
+
+class Pipeline(BaseModel):
+    """
+    A class to hold information about the NTM-Profiler pipeline
+    
+    Attributes
+    ----------
+    software_versio  : str
+        NTM-Profiler version
+    db_version : dict
+        TB-Profiler database version
+    software : List[dict]
+        Software used in the pipeline
+    """
+    software_version: str
+    species_db_version: Optional[dict]
+    resistance_db_version: Optional[dict]
+    software: List[dict]
 
 class Result(BaseModel):
     schema_version: str = __model_schema_version__
+    pipeline: Pipeline
     id: str
 
 class SpeciesResult(Result):
