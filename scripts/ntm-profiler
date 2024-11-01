@@ -237,7 +237,8 @@ def main_update_db(args):
         logging.debug(f"Directory {dirname} does not exist, cloning repo")
         pp.run_cmd(f'git clone {args.repo}')
         os.chdir(f'{dirname}/db/')
-        pp.run_cmd(f'git checkout {args.branch}')
+        
+    pp.run_cmd(f'git checkout {args.branch}')
     
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
