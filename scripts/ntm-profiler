@@ -15,7 +15,7 @@ from packaging.version import Version
 
 __softwarename__ = "ntm-profiler"
 __compatible_resistance_db_schema__ = Version("1.0.0")
-__compatible_species_db_schema__ = Version("1.0.0")
+__compatible_species_db_schema__ = Version("2.0.0")
 
 def remove_temp_files(prefix):
     if len(glob.glob(f"{prefix}*"))>0:
@@ -186,7 +186,7 @@ def main_profile(args):
     pp.run_cmd(f"rm {args.files_prefix}*")
 
 
-def check_db_schema_version():
+def check_db_schema_version(dbtype):
     current_path = os.getcwd()
     variables_filename = os.path.join(current_path, 'variables.json')
     if not os.path.isfile(variables_filename):
@@ -197,13 +197,16 @@ def check_db_schema_version():
         logging.error(f"Could not find 'db-schema-version' in {variables_filename}")
         quit(1)
     db_schema_version = Version(variables['db-schema-version'])
-    if db_schema_version.major != __compatible_resistance_db_schema__.major:
+    if dbtype == 'species' and db_schema_version.major != __compatible_species_db_schema__.major:
+        logging.error(f"Database schema version {db_schema_version} from {variables_filename} is not compatible with this version of NTM-Profiler (requires {__compatible_species_db_schema__}). Please update the database")
+        quit(1)
+    elif dbtype == 'resistance' and db_schema_version.major != __compatible_resistance_db_schema__.major:
         logging.error(f"Database schema version {db_schema_version} from {variables_filename} is not compatible with this version of NTM-Profiler (requires {__compatible_resistance_db_schema__}). Please update the database")
         quit(1)
 
 
 def create_species_db(args):
-    check_db_schema_version()
+    check_db_schema_version('species')
 
     extra_files = {
         "sourmash_db":args.sourmash_db,
@@ -212,7 +215,7 @@ def create_species_db(args):
     pp.create_species_db(args,extra_files = extra_files)
 
 def create_resistance_db(args):
-    check_db_schema_version()
+    check_db_schema_version('resistance')
 
     extra_files = {}
     if args.barcode:
@@ -242,12 +245,11 @@ def main_update_db(args):
     
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
-        
-    pp.run_cmd("cat species/sourmash-split.* > species/sourmash.sbt.zip")
 
 
     pp.logging.info('\nCreating species DB')
     os.chdir('species')
+    pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
     pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --load')
     os.chdir('../')
     dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
