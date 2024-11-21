@@ -346,7 +346,7 @@ other.add_argument('--version', action='version', version="NTM-Profiler version 
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--supplementary_bam',help=argparse.SUPPRESS)
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
-other.add_argument('--barcode_stdev',type=float,default=0.15)
+other.add_argument('--barcode_stdev',type=float,default=0.15,help='Standard deviation for barcode SNPs')
 other.add_argument('--barcode_snps','--barcode-snps',help='Dump barcoding mutations to a file')
 other.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 
