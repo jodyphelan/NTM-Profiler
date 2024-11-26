@@ -140,6 +140,7 @@ def main_profile(args):
     for var in variants_profile:
         var.convert_to_dr_element()
 
+    args.caller = args.barcode_caller
     barcode_result = pp.run_barcoder(args)
 
     if args.data_source in ('bam','fastq'):
@@ -323,6 +324,7 @@ filtering.add_argument('--sv_len',default="100000,50000",type=str,help='Structur
 algorithm=parser_sub.add_argument_group("Algorithm options")
 algorithm.add_argument('--mapper',default="bwa", choices=["bwa","minimap2","bowtie2","bwa-mem2"],help="Mapping tool to use. If you are using nanopore data it will default to minimap2",type=str)
 algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
+algorithm.add_argument('--barcode_caller',default="mpileup", choices=["mpileup","bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
 algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use",type=str)
 algorithm.add_argument('--coverage_tool',default="samtools", choices=["bedtools","samtools"],help="Coverage  tool to use",type=str)
 algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
@@ -346,7 +348,7 @@ other.add_argument('--version', action='version', version="NTM-Profiler version 
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--supplementary_bam',help=argparse.SUPPRESS)
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
-other.add_argument('--barcode_stdev',type=float,default=0.15,help='Standard deviation for barcode SNPs')
+other.add_argument('--barcode_stdev',type=float,default=0.15,help=argparse.SUPPRESS)
 other.add_argument('--barcode_snps','--barcode-snps',help='Dump barcoding mutations to a file')
 other.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 
