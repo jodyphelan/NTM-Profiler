@@ -15,7 +15,7 @@ from packaging.version import Version
 
 __softwarename__ = "ntm-profiler"
 __compatible_resistance_db_schema__ = Version("1.0.0")
-__compatible_species_db_schema__ = Version("1.0.0")
+__compatible_species_db_schema__ = Version("2.0.0")
 
 def remove_temp_files(prefix):
     if len(glob.glob(f"{prefix}*"))>0:
@@ -96,7 +96,7 @@ def main_profile(args):
             )
     
 
-
+    args.species_db_conf = pp.get_db(args.software_name,args.species_db,verbose=False)
     species_prediction = ntmp.get_species(args) 
 
 
@@ -119,7 +119,7 @@ def main_profile(args):
             qc = pp.run_fasta_qc(args)
         else:
             qc = pp.run_vcf_qc(args)
-        result = ntmp.create_species_result(args.prefix,species_prediction,qc)
+        result = ntmp.create_species_result(args,args.prefix,species_prediction,qc)
         ntmp.write_outputs(args,result)
         remove_temp_files(args.files_prefix)
         quit(0)
@@ -140,6 +140,7 @@ def main_profile(args):
     for var in variants_profile:
         var.convert_to_dr_element()
 
+    args.caller = args.barcode_caller
     barcode_result = pp.run_barcoder(args)
 
     if args.data_source in ('bam','fastq'):
@@ -154,6 +155,7 @@ def main_profile(args):
     for rule in rules_applied:
         notes.append(f"Rule applied: {rule}")
     result = ntmp.create_resistance_result(
+        args=args,
         id=args.prefix,
         species=species_prediction,
         genetic_elements=variants_profile,
@@ -185,7 +187,7 @@ def main_profile(args):
     pp.run_cmd(f"rm {args.files_prefix}*")
 
 
-def check_db_schema_version():
+def check_db_schema_version(dbtype):
     current_path = os.getcwd()
     variables_filename = os.path.join(current_path, 'variables.json')
     if not os.path.isfile(variables_filename):
@@ -196,13 +198,16 @@ def check_db_schema_version():
         logging.error(f"Could not find 'db-schema-version' in {variables_filename}")
         quit(1)
     db_schema_version = Version(variables['db-schema-version'])
-    if db_schema_version.major != __compatible_resistance_db_schema__.major:
+    if dbtype == 'species' and db_schema_version.major != __compatible_species_db_schema__.major:
+        logging.error(f"Database schema version {db_schema_version} from {variables_filename} is not compatible with this version of NTM-Profiler (requires {__compatible_species_db_schema__}). Please update the database")
+        quit(1)
+    elif dbtype == 'resistance' and db_schema_version.major != __compatible_resistance_db_schema__.major:
         logging.error(f"Database schema version {db_schema_version} from {variables_filename} is not compatible with this version of NTM-Profiler (requires {__compatible_resistance_db_schema__}). Please update the database")
         quit(1)
 
 
 def create_species_db(args):
-    check_db_schema_version()
+    check_db_schema_version('species')
 
     extra_files = {
         "sourmash_db":args.sourmash_db,
@@ -211,7 +216,7 @@ def create_species_db(args):
     pp.create_species_db(args,extra_files = extra_files)
 
 def create_resistance_db(args):
-    check_db_schema_version()
+    check_db_schema_version('resistance')
 
     extra_files = {}
     if args.barcode:
@@ -236,16 +241,16 @@ def main_update_db(args):
         logging.debug(f"Directory {dirname} does not exist, cloning repo")
         pp.run_cmd(f'git clone {args.repo}')
         os.chdir(f'{dirname}/db/')
-        pp.run_cmd(f'git checkout {args.branch}')
+        
+    pp.run_cmd(f'git checkout {args.branch}')
     
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
-        
-    pp.run_cmd("cat species/sourmash-split.* > species/sourmash.sbt.zip")
 
 
     pp.logging.info('\nCreating species DB')
     os.chdir('species')
+    pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
     pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --load')
     os.chdir('../')
     dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
@@ -319,6 +324,7 @@ filtering.add_argument('--sv_len',default="100000,50000",type=str,help='Structur
 algorithm=parser_sub.add_argument_group("Algorithm options")
 algorithm.add_argument('--mapper',default="bwa", choices=["bwa","minimap2","bowtie2","bwa-mem2"],help="Mapping tool to use. If you are using nanopore data it will default to minimap2",type=str)
 algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
+algorithm.add_argument('--barcode_caller',default="mpileup", choices=["mpileup","bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
 algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use",type=str)
 algorithm.add_argument('--coverage_tool',default="samtools", choices=["bedtools","samtools"],help="Coverage  tool to use",type=str)
 algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
@@ -342,7 +348,10 @@ other.add_argument('--version', action='version', version="NTM-Profiler version 
 other.add_argument('--no_cleanup',action="store_true",help="Don't remove temporary files on error")
 other.add_argument('--supplementary_bam',help=argparse.SUPPRESS)
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
+other.add_argument('--barcode_stdev',type=float,default=0.15,help=argparse.SUPPRESS)
+other.add_argument('--barcode_snps','--barcode-snps',help='Dump barcoding mutations to a file')
 other.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+
 parser_sub.set_defaults(func=main_profile)
 
 
