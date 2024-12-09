@@ -9,7 +9,13 @@ Please beware that this tools is in alpha testing and should not yet be consider
 Installation is available through conda:
 
 ```
-conda install -c bioconda ntm-profiler=0.2.1
+conda install bioconda::ntm-profiler
+```
+
+or if you have `mamba` installed:
+
+```
+mamba install bioconda::ntm-profiler
 ```
 
 After installing, the relevant species and resistance databases can be downloaded by running:
