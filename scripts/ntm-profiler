@@ -252,7 +252,7 @@ def main_update_db(args):
     pp.logging.info('\nCreating species DB')
     os.chdir('species')
     pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
-    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --load')
+    pp.run_cmd(f'ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --db_dir {args.db_dir} --load')
     os.chdir('../')
     dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
     for d in dirs:
@@ -261,7 +261,7 @@ def main_update_db(args):
         species = json.load(open('variables.json'))['species']
         logging.info(f'\nCreating DB for {species}')
         barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
-        pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
+        pp.run_cmd(f'ntm-profiler create_resistance_db --db_dir {args.db_dir} --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
         os.chdir('../')
 
 def main_list_db(args):
