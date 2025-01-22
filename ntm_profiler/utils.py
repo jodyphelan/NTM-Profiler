@@ -4,7 +4,7 @@ import argparse
 from pathogenprofiler.models import SpeciesPrediction
 
 def check_for_databases(args: argparse.Namespace):
-    if len(pp.list_db(args.software_name))<1:
+    if len(pp.list_db(args.db_dir))<1:
         sys.stderr.write('No databases found... please run `ntm-profiler update_db`\n')
         quit(1)
 
