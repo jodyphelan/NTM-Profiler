@@ -14,6 +14,7 @@ from rich.logging import RichHandler
 from packaging.version import Version
 
 __softwarename__ = "ntm-profiler"
+__default_data_dir__ = f'{sys.base_prefix}/share/{__softwarename__}/'
 __compatible_resistance_db_schema__ = Version("1.0.0")
 __compatible_species_db_schema__ = Version("2.0.0")
 
@@ -213,7 +214,7 @@ def create_species_db(args):
         "sourmash_db":args.sourmash_db,
         "sourmash_db_info":args.accessions
     }
-    pp.create_species_db(args,extra_files = extra_files)
+    pp.create_species_db(args,extra_files = extra_files,db_dir=args.db_dir)
 
 def create_resistance_db(args):
     check_db_schema_version('resistance')
@@ -251,7 +252,7 @@ def main_update_db(args):
     pp.logging.info('\nCreating species DB')
     os.chdir('species')
     pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
-    pp.run_cmd('ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --load')
+    pp.run_cmd(f'ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --db_dir {args.db_dir} --load')
     os.chdir('../')
     dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
     for d in dirs:
@@ -260,16 +261,17 @@ def main_update_db(args):
         species = json.load(open('variables.json'))['species']
         logging.info(f'\nCreating DB for {species}')
         barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
-        pp.run_cmd(f'ntm-profiler create_resistance_db --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
+        pp.run_cmd(f'ntm-profiler create_resistance_db --db_dir {args.db_dir} --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
         os.chdir('../')
 
 def main_list_db(args):
     ntmp.check_for_databases(args)
-    dbs = pp.list_db(args.software_name)
+    print(args.db_dir)
+    dbs = pp.list_db(args.db_dir)
     for db in dbs:
         obj = {
             'name': db['version'].get('name'),
-            'location': f"{sys.base_prefix}/share/{args.software_name}/{db['version']['name']}",
+            'location': f"{args.db_dir}/{db['version']['name']}",
             'commit': db['version'].get('commit'),
             'author': db['version'].get('Author'),
             'date': db['version'].get('Date')
@@ -283,7 +285,7 @@ def main_list_db(args):
 
 parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
-parser.add_argument('--no_clean', action='store_true', help=argparse.SUPPRESS)
+parser.add_argument('--no_cleanup', action='store_true', help=argparse.SUPPRESS)
 parser.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 subparsers = parser.add_subparsers(help="Task to perform")
 
@@ -350,6 +352,7 @@ other.add_argument('--supplementary_bam',help=argparse.SUPPRESS)
 other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
 other.add_argument('--barcode_stdev',type=float,default=0.15,help=argparse.SUPPRESS)
 other.add_argument('--barcode_snps','--barcode-snps',help='Dump barcoding mutations to a file')
+other.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 other.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 
 parser_sub.set_defaults(func=main_profile)
@@ -367,6 +370,7 @@ parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_collate)
@@ -377,12 +381,13 @@ parser_sub.set_defaults(func=main_collate)
 
 # Update database #
 parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
-parser_sub.add_argument('--repo','-r',default="https://github.com/ntm-db/ntm-db.git",help='Repository to pull from')
-parser_sub.add_argument('--branch','-b',default="master",help='Storage directory')
+parser_sub.add_argument('--repo','-r',default="https://github.com/pathogen-profiler/ntm-db.git",help='Repository to pull from')
+parser_sub.add_argument('--branch','-b',default="main",help='Storage directory')
 parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (default: latest)')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_update_db)
 
@@ -406,6 +411,7 @@ parser_sub.add_argument('--db-date',help='Overrides the date of the database in 
 parser_sub.add_argument('--include_original_mutation',action="store_true", help='Include the original mutation (before reformatting) as part of the variant annotaion')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
+parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=create_resistance_db)
@@ -424,14 +430,16 @@ parser_sub.add_argument('--db-date',help='Overrides the date of the database in 
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=create_species_db)
 
 parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
-parser_sub.add_argument('--no_clean', action='store_true',help=argparse.SUPPRESS)
+parser_sub.add_argument('--no_cleanup', action='store_true',help=argparse.SUPPRESS)
 parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_list_db)
 
@@ -450,7 +458,7 @@ if hasattr(args, 'func'):
 
     
     args.files_prefix = f"{args.temp}/{args.tmp_prefix}"
-
+    args.snpeff_config = f'{sys.base_prefix}/share/{args.software_name}/snpeff/snpEff.config'
     args.func(args)
 else:
     parser.print_help(sys.stderr)
