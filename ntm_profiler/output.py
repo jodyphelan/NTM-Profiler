@@ -254,7 +254,6 @@ def collate(args):
 
     drugs = set()
     for res_db in resistance_dbs_used:
-        print(res_db)
         res_db_conf = pp.get_db(args.db_dir,res_db,verbose=False)
         drugs.update(res_db_conf['drugs'])
 
