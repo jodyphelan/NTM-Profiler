@@ -214,6 +214,7 @@ def collate(args):
     variant_db = VariantDB()
     rows = []
     drug_resistance_results = []
+    resistance_dbs_used = set()
     for s in tqdm(samples):
         # Data has the same structure as the .result.json files
         data = json.load(open(filecheck("%s/%s%s" % (args.dir,s,args.suffix))))
@@ -235,6 +236,7 @@ def collate(args):
             row['closest-sequence'] = None
             row['ANI'] = None
         if isinstance(result, ProfileResult):
+            resistance_dbs_used.add(result.pipeline.resistance_db_version['name'])
             variant_db.add_result(result)
             row['barcode'] = ";".join([x.id for x in result.barcode]) 
             
@@ -250,15 +252,17 @@ def collate(args):
         rows.append(row) 
 
 
+    drugs = set()
+    for res_db in resistance_dbs_used:
+        print(res_db)
+        res_db_conf = pp.get_db(args.db_dir,res_db,verbose=False)
+        drugs.update(res_db_conf['drugs'])
 
-    drugs = sorted(list(set([x['drug'] for x in drug_resistance_results])))
-
+    drugs = sorted(list(drugs))
 
     for row in rows:
         for drug in drugs:
             row[drug] = "; ".join([x['var'] for x in drug_resistance_results if x['id']==row['id'] and x['drug']==drug])
-
-
     
     if args.format=="txt":
         args.sep = "\t"
