@@ -266,11 +266,12 @@ def main_update_db(args):
 
 def main_list_db(args):
     ntmp.check_for_databases(args)
-    dbs = pp.list_db(args.software_name)
+    print(args.db_dir)
+    dbs = pp.list_db(args.db_dir)
     for db in dbs:
         obj = {
             'name': db['version'].get('name'),
-            'location': f"{sys.base_prefix}/share/{args.software_name}/{db['version']['name']}",
+            'location': f"{args.db_dir}/{db['version']['name']}",
             'commit': db['version'].get('commit'),
             'author': db['version'].get('Author'),
             'date': db['version'].get('Date')
@@ -369,6 +370,7 @@ parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
 parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_collate)
@@ -437,6 +439,7 @@ parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--no_cleanup', action='store_true',help=argparse.SUPPRESS)
 parser_sub.add_argument('--version', action='version', version="TBProfiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
+parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser_sub.set_defaults(func=main_list_db)
 
