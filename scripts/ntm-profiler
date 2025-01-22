@@ -266,7 +266,6 @@ def main_update_db(args):
 
 def main_list_db(args):
     ntmp.check_for_databases(args)
-    print(args.db_dir)
     dbs = pp.list_db(args.db_dir)
     for db in dbs:
         obj = {
