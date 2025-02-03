@@ -81,7 +81,7 @@ Missing positions report
 
 Analysis pipeline specifications
 --------------------------------
-Pipeline version{{d['sep']}}{{d['version']}}
+Pipeline version{{d['sep']}}{{d['software_version']}}
 Species Database version{{d['sep']}}{{d['species_db_version']}}
 Resistance Database version{{d['sep']}}{{d['resistance_db_version']}}
 
@@ -107,7 +107,7 @@ Species report
 
 Analysis pipeline specifications
 --------------------------------
-Pipeline version{{d['sep']}}{{d['resistance_db_version']}}
+Pipeline version{{d['sep']}}{{d['software_version']}}
 Species Database version{{d['sep']}}{{d['species_db_version']}}
 
 {{d['pipeline']}}
@@ -154,7 +154,7 @@ def write_text(
     else:
         template_string = species_template
 
-    text_strings['version'] = result.pipeline.software_version
+    text_strings['software_version'] = result.pipeline.software_version
     text_strings['species_db_version'] = f'%(name)s - %(repo)s (%(commit)s:%(status)s)' % result.pipeline.species_db_version
     text_strings['pipeline'] = pp.dict_list2text(result.pipeline.software,sep=sep)
 
