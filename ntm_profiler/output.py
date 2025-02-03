@@ -145,9 +145,9 @@ def write_text(
         text_strings["notes"] = "\n".join(result.notes)
         text_strings["dr_report"] = pp.dict_list2text(summary_table,sep=sep)
         text_strings["dr_genes_report"] = pp.object_list2text(result.dr_genes,mappings={"gene_id":"Locus Tag","gene_name":"Gene name","drugs.drug":"Drug"},sep=sep)
-        text_strings["dr_var_report"] = pp.object_list2text(result.dr_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
-        text_strings["other_var_report"] = pp.object_list2text(result.other_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction"},sep=sep)
-        text_strings['qc_fail_var_report'] = pp.object_list2text(result.fail_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction"},sep=sep)
+        text_strings["dr_var_report"] = pp.object_list2text(result.dr_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","drugs.drug":"Drug","annotation.comment":"Comment"},sep=sep)
+        text_strings["other_var_report"] = pp.object_list2text(result.other_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","annotation.comment":"Comment"},sep=sep)
+        text_strings['qc_fail_var_report'] = pp.object_list2text(result.fail_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","annotation.comment":"Comment"},sep=sep)
         text_strings["coverage_report"] = result.get_qc()
         text_strings['resistance_db_version'] = f'%(name)s - %(repo)s (%(commit)s:%(status)s) ' % result.pipeline.resistance_db_version
 
