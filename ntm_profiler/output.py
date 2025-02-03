@@ -9,7 +9,7 @@ from tqdm import tqdm
 import json
 import jinja2
 import logging
-from .models import ProfileResult, SpeciesResult
+from .models import ProfileResult, SpeciesResult, Result
 from typing import List, Tuple, Optional
 
 def write_outputs(args,result: ProfileResult):
@@ -81,7 +81,7 @@ Missing positions report
 
 Analysis pipeline specifications
 --------------------------------
-Pipeline version{{d['sep']}}{{d['version']}}
+Pipeline version{{d['sep']}}{{d['software_version']}}
 Species Database version{{d['sep']}}{{d['species_db_version']}}
 Resistance Database version{{d['sep']}}{{d['resistance_db_version']}}
 
@@ -107,7 +107,7 @@ Species report
 
 Analysis pipeline specifications
 --------------------------------
-Pipeline version{{d['sep']}}{{d['version']}}
+Pipeline version{{d['sep']}}{{d['software_version']}}
 Species Database version{{d['sep']}}{{d['species_db_version']}}
 
 {{d['pipeline']}}
@@ -124,7 +124,7 @@ def load_text(text_strings: str,template: str = None,file_template: str = None):
 
 
 def write_text(
-        result: ProfileResult,
+        result: Result,
         conf: dict,
         outfile: str,
         sep: str ="\t",
@@ -145,13 +145,18 @@ def write_text(
         text_strings["notes"] = "\n".join(result.notes)
         text_strings["dr_report"] = pp.dict_list2text(summary_table,sep=sep)
         text_strings["dr_genes_report"] = pp.object_list2text(result.dr_genes,mappings={"gene_id":"Locus Tag","gene_name":"Gene name","drugs.drug":"Drug"},sep=sep)
-        text_strings["dr_var_report"] = pp.object_list2text(result.dr_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","drugs.drug":"Drug"},sep=sep)
-        text_strings["other_var_report"] = pp.object_list2text(result.other_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction"},sep=sep)
-        text_strings['qc_fail_var_report'] = pp.object_list2text(result.fail_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction"},sep=sep)
+        text_strings["dr_var_report"] = pp.object_list2text(result.dr_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","drugs.drug":"Drug","annotation.comment":"Comment"},sep=sep)
+        text_strings["other_var_report"] = pp.object_list2text(result.other_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","annotation.comment":"Comment"},sep=sep)
+        text_strings['qc_fail_var_report'] = pp.object_list2text(result.fail_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","annotation.comment":"Comment"},sep=sep)
         text_strings["coverage_report"] = result.get_qc()
+        text_strings['resistance_db_version'] = f'%(name)s - %(repo)s (%(commit)s:%(status)s) ' % result.pipeline.resistance_db_version
 
     else:
         template_string = species_template
+
+    text_strings['software_version'] = result.pipeline.software_version
+    text_strings['species_db_version'] = f'%(name)s - %(repo)s (%(commit)s:%(status)s)' % result.pipeline.species_db_version
+    text_strings['pipeline'] = pp.dict_list2text(result.pipeline.software,sep=sep)
 
     if sep=="\t":
         text_strings["sep"] = ": "

@@ -2,7 +2,7 @@ from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVari
 from .models import SpeciesResult, ProfileResult, Pipeline
 from typing import List, Union
 import argparse
-from pathogenprofiler.utils import shared_dict
+from pathogenprofiler.utils import get_software_used
 
 def split_variants_on_filter(elements):
     dr_genes = []
@@ -32,7 +32,7 @@ def get_pipeline_object(args: argparse.Namespace) -> Pipeline:
         software_version=args.software_version,
         species_db_version=args.species_db_conf['version'] if args.species_db_conf else None,
         resistance_db_version=args.conf['version'] if args.conf else None,
-        software=[{'process':k,'software':v} for k,v in shared_dict.items()]
+        software=get_software_used()
     )
 
 def create_species_result(
