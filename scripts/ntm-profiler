@@ -104,13 +104,13 @@ def main_profile(args):
 
         
     if args.resistance_db:
-        args.conf = pp.get_db(args.software_name,args.resistance_db,verbose=False)
+        args.conf = pp.get_db(args.db_dir,args.resistance_db,verbose=False)
     else:
         args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     
     if args.conf is None:
         if len(species_prediction.species)>0:
-            logging.info("No resistance database found for %s" % species_prediction.species[0].species)
+            logging.info("No resistance database found for |%s|" % species_prediction.species[0].species)
         else:
             logging.warning("No species prediction was made")
         if args.bam:
