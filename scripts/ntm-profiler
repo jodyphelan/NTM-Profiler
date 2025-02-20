@@ -106,11 +106,17 @@ def main_profile(args):
     if args.resistance_db:
         args.conf = pp.get_db(args.db_dir,args.resistance_db,verbose=False)
     else:
-        args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
+        number_of_species = len(set([s.species for s in species_prediction.species]))
+        if number_of_species>1:
+            args.conf = None
+        else:
+            args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     
     if args.conf is None:
-        if len(species_prediction.species)>0:
-            logging.info("No resistance database found for |%s|" % species_prediction.species[0].species)
+        if len(species_prediction.species)==0:
+            logging.info("No resistance database found for %s" % species_prediction.species[0].species)
+        elif len(species_prediction.species)>1:
+            logging.error("Multiple species found, analysis can't continue.")
         else:
             logging.warning("No species prediction was made")
         if args.bam:
