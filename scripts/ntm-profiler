@@ -113,7 +113,7 @@ def main_profile(args):
             args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
     
     if args.conf is None:
-        if len(species_prediction.species)==0:
+        if len(species_prediction.species)==1:
             logging.info("No resistance database found for %s" % species_prediction.species[0].species)
         elif len(species_prediction.species)>1:
             logging.error("Multiple species found, analysis can't continue.")
