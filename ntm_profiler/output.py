@@ -244,7 +244,7 @@ def collate(args):
             resistance_dbs_used.add(result.pipeline.resistance_db_version['name'])
             variant_db.add_result(result)
             row['barcode'] = ";".join([x.id for x in result.barcode]) 
-            
+            print(row['barcode'])
             for var in result.dr_variants + result.dr_genes:
                 for d in var.drugs:
                     drug_resistance_results.append({
