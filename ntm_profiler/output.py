@@ -276,8 +276,9 @@ def collate(args):
     for row in rows:
         all_fields.update(row.keys())
 
+
     with open(args.outfile,"w") as O:
-        writer = csv.DictWriter(O,fieldnames=list(rows[0]),delimiter=args.sep,extrasaction='ignore')
+        writer = csv.DictWriter(O,fieldnames=all_fields,delimiter=args.sep,extrasaction='ignore')
         writer.writeheader()
         writer.writerows(rows)
 
