@@ -272,13 +272,17 @@ def collate(args):
     else:
         args.sep = ","
 
-    all_fields = set()
-    for row in rows:
-        all_fields.update(row.keys())
+    fields = [
+        'id',
+        'species',
+        'closest-sequence',
+        'ANI',
+        'barcode'
+    ] + drugs
 
 
     with open(args.outfile,"w") as O:
-        writer = csv.DictWriter(O,fieldnames=all_fields,delimiter=args.sep,extrasaction='ignore')
+        writer = csv.DictWriter(O,fieldnames=fields,delimiter=args.sep,extrasaction='ignore')
         writer.writeheader()
         writer.writerows(rows)
 
