@@ -244,7 +244,6 @@ def collate(args):
             resistance_dbs_used.add(result.pipeline.resistance_db_version['name'])
             variant_db.add_result(result)
             row['barcode'] = ";".join([x.id for x in result.barcode]) 
-            
             for var in result.dr_variants + result.dr_genes:
                 for d in var.drugs:
                     drug_resistance_results.append({
@@ -273,8 +272,17 @@ def collate(args):
     else:
         args.sep = ","
 
+    fields = [
+        'id',
+        'species',
+        'closest-sequence',
+        'ANI',
+        'barcode'
+    ] + drugs
+
+
     with open(args.outfile,"w") as O:
-        writer = csv.DictWriter(O,fieldnames=list(rows[0]),delimiter=args.sep,extrasaction='ignore')
+        writer = csv.DictWriter(O,fieldnames=fields,delimiter=args.sep,extrasaction='ignore')
         writer.writeheader()
         writer.writerows(rows)
 
