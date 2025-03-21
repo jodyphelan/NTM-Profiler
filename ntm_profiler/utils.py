@@ -29,10 +29,13 @@ def summarise_sourmash_hits(sourmash_hits):
 def merge_sourmash_species(sourmash_hits: SpeciesPrediction) -> None:
     species_detected = set(s.species for s in sourmash_hits.species)
     species_objects = []
+    if 'abundance' not in sourmash_hits.species[0].prediction_info:
+        return 
     for species in species_detected:
-        hits = sorted([s for s in sourmash_hits.species if s.species == species],key=lambda x: x.prediction_info['abundance'],reverse=True)
+        hits = [s for s in sourmash_hits.species if s.species == species]
+        hits = sorted(hits,key=lambda x: x.prediction_info['abundance'],reverse=True)
         species_objects.append(hits[0])
-
+        
     total_abundance = sum([s.prediction_info['abundance'] for s in species_objects])
     for s in species_objects:
         s.prediction_info['relative_abundance'] = s.prediction_info['abundance']/total_abundance*100

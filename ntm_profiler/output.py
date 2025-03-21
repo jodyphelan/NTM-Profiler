@@ -47,10 +47,10 @@ Species report
 -----------------
 {{d['sourmash_species_report']}}
 
-{%- if 'cluster_report' in d %}
-Cluster report
+{% if 'barcode_report' in d %}
+Barcode report
 -----------------
-{{d['cluster_report']}}
+{{d['barcode_report']}}
 {% endif %}
 
 {% if  'dr_report' in d %}
@@ -150,7 +150,7 @@ def write_text(
         text_strings['qc_fail_var_report'] = pp.object_list2text(result.fail_variants,mappings={"pos":"Genome Position","gene_id":"Locus Tag",'gene_name':'Gene name',"type":"Variant type","change":"Change","freq":"Estimated fraction","annotation.comment":"Comment"},sep=sep)
         text_strings["coverage_report"] = result.get_qc()
         text_strings['resistance_db_version'] = f'%(name)s - %(repo)s (%(commit)s:%(status)s) ' % result.pipeline.resistance_db_version
-
+        text_strings['barcode_report'] = pp.object_list2text(result.barcode,mappings={"id":"Taxa","frequency":"Frequency"},sep=sep)
     else:
         template_string = species_template
 
