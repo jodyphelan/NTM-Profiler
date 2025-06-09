@@ -29,6 +29,8 @@ def summarise_sourmash_hits(sourmash_hits):
 def merge_sourmash_species(sourmash_hits: SpeciesPrediction) -> None:
     species_detected = set(s.species for s in sourmash_hits.species)
     species_objects = []
+    if len(sourmash_hits.species) == 0:
+        return
     if 'abundance' not in sourmash_hits.species[0].prediction_info:
         return 
     for species in species_detected:
