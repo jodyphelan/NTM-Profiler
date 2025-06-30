@@ -145,3 +145,18 @@ As before you can add the `--load` to automate loading of the database. Some imp
 
 * If you want ntm-profiler to automatically select the right database for resistance prediction after speciation, then the `--prefix` should match the desired species as it appears in the kmers file.
 * If you are planning to use `ntm-profiler` on bam files, it is important to use `--match_ref myref.fa` to match the chromosome names used in your alignment pipeline, as it might differ with the ones used in the github repo.
+
+
+## Development 
+
+# Use latest development version
+
+```bash
+wget https://raw.githubusercontent.com/jodyphelan/NTM-Profiler/refs/heads/dev/conda/linux.explicit.txt
+mamba create --name ntm-profiler-dev --file linux.explicit.txt
+conda activate ntm-profiler-dev
+pip install --force-reinstall git+https://github.com/jodyphelan/NTM-Profiler.git@dev
+pip install --force-reinstall git+https://github.com/jodyphelan/pathogen-profiler.git@dev
+# Important! remove any old folder with the name ntm-db and then run the following command to update the database
+ntm-profiler update_db
+```
