@@ -149,7 +149,7 @@ As before you can add the `--load` to automate loading of the database. Some imp
 
 ## Development 
 
-# Use latest development version
+### Using latest development version
 
 ```bash
 wget https://raw.githubusercontent.com/jodyphelan/NTM-Profiler/refs/heads/dev/conda/linux.explicit.txt
