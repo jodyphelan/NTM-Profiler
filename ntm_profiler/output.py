@@ -246,8 +246,8 @@ def collate(args):
         # top_species_hit = result.species.species[0] if len(result.species.species)>0 else None
         if len(result.taxa)>0:
             row['species'] =  ";".join([hit.species for hit in result.taxa])
-            row['closest-sequence'] = ";".join([hit.prediction_info['accession'] for hit in result.taxa])
-            row['ANI'] = ";".join([str(hit.prediction_info['ani']) for hit in result.taxa])
+            row['closest-sequence'] = ";".join([hit.accession for hit in result.taxa])
+            row['ANI'] = ";".join([str(hit.ani) for hit in result.taxa])
         else:
             row['species'] =  None
             row['closest-sequence'] = None
