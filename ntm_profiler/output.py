@@ -263,8 +263,10 @@ def collate(args):
                         'drug': d['drug'],
                         'var': var.get_str(),
                     })
-                    
-
+        notes = []
+        if len(result.qc_fail_taxa)>0:
+            notes.append(f"Additional species detected, but failed QC: {', '.join([hit.species for hit in result.qc_fail_taxa])}")
+        row['notes'] = "; ".join(notes)
         rows.append(row) 
 
 
