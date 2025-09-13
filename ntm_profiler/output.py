@@ -44,11 +44,17 @@ Notes
 {{d['notes']}}
 
 Species report
------------------
+--------------
+Notes: {{d['species_notes']}}
+
 {{d['sourmash_species_report']}}
 
+QC Failed species
+-----------------
+{{d['qc_fail_sourmash_species_report']}}
+
 {% if 'barcode_report' in d %}
-Barcode report
+Subspecies report
 -----------------
 {{d['barcode_report']}}
 {% endif %}
@@ -103,7 +109,13 @@ Date{{d['sep']}}{{d['date']}}
 
 Species report
 -----------------
+Notes: {{d['species_notes']}}
+
 {{d['sourmash_species_report']}}
+
+QC Failed species
+-----------------
+{{d['qc_fail_sourmash_species_report']}}
 
 Analysis pipeline specifications
 --------------------------------
@@ -133,9 +145,9 @@ def write_text(
     text_strings = {}
     text_strings["id"] = result.id
     text_strings["date"] = time.ctime()
-    text_strings['sourmash_species_report'] = pp.dict_list2text([d.prediction_info for d in result.species.species],mappings={"species":"Species","accession":"Accession","ani":"ANI","abundance":"Abundance","relative_abundance":"Relative abundance"},sep=sep)
-    
-
+    text_strings['sourmash_species_report'] = pp.object_list2text([d for d in result.taxa],mappings={"species":"Species","accession":"Accession","ani":"ANI","abundance":"Abundance","relative_abundance":"Relative abundance"},sep=sep)
+    text_strings["qc_fail_sourmash_species_report"] = pp.object_list2text([d for d in result.qc_fail_taxa],mappings={"species":"Species","accession":"Accession","ani":"ANI","abundance":"Abundance","relative_abundance":"Relative abundance"},sep=sep)
+    text_strings["species_notes"] = "\n".join([", ".join(t.notes) for t in result.taxa])
 
     if isinstance(result, ProfileResult):
     
@@ -232,10 +244,10 @@ def collate(args):
         }
         
         # top_species_hit = result.species.species[0] if len(result.species.species)>0 else None
-        if len(result.species.species)>0:
-            row['species'] =  ";".join([hit.species for hit in result.species.species])
-            row['closest-sequence'] = ";".join([hit.prediction_info['accession'] for hit in result.species.species])
-            row['ANI'] = ";".join([str(hit.prediction_info['ani']) for hit in result.species.species])
+        if len(result.taxa)>0:
+            row['species'] =  ";".join([hit.species for hit in result.taxa])
+            row['closest-sequence'] = ";".join([hit.prediction_info['accession'] for hit in result.taxa])
+            row['ANI'] = ";".join([str(hit.prediction_info['ani']) for hit in result.taxa])
         else:
             row['species'] =  None
             row['closest-sequence'] = None

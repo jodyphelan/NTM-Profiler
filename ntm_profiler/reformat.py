@@ -3,6 +3,8 @@ from .models import SpeciesResult, ProfileResult, Pipeline
 from typing import List, Union
 import argparse
 from pathogenprofiler.utils import get_software_used
+from collections import defaultdict
+import csv
 
 def split_variants_on_filter(elements):
     dr_genes = []
@@ -41,15 +43,29 @@ def create_species_result(
     species: SpeciesPrediction,
     qc: FastqQC
 ) -> SpeciesResult:
+    add_taxonomy_info(args,species)
     pipeline = get_pipeline_object(args)
     return SpeciesResult(
         id=id,
-        species=species,
+        taxa=species.taxa,
+        qc_fail_taxa=species.qc_fail_taxa,
         qc= qc,
         pipeline=pipeline
     )
 
+def add_taxonomy_info(
+    args: argparse.Namespace,
+    species: SpeciesPrediction,
+) -> None:
+    notes = defaultdict(list)
+    if 'taxonomy_info' in args.species_db_conf:
+        for row in csv.DictReader(open(args.species_db_conf['taxonomy_info'])):
+            notes[row['gtdb_species']].append(row['notes'])
+    for t in species.taxa:
+        if t.species in notes:
+            t.notes += notes[t.species]
 
+        
 
 def create_resistance_result(
     args: argparse.Namespace,
@@ -61,7 +77,7 @@ def create_resistance_result(
     notes: List[str],
     resistance_db: dict
 ) -> ProfileResult:
-    
+    add_taxonomy_info(args,species)
     pipeline = get_pipeline_object(args)
     dr_genes, other_genes, dr_variants, other_variants, fail_variants = split_variants_on_filter(genetic_elements)
     data = {
@@ -73,7 +89,8 @@ def create_resistance_result(
         'dr_variants':dr_variants,
         'other_variants':other_variants,
         'fail_variants':fail_variants,
-        'species':species,
+        'taxa':species.taxa,
+        'qc_fail_taxa': species.qc_fail_taxa,
         'barcode':barcode,
         'pipeline':pipeline
     }
