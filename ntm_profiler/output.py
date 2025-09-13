@@ -288,6 +288,7 @@ def collate(args):
 
     fields = [
         'id',
+        'notes',
         'species',
         'closest-sequence',
         'ANI',
