@@ -329,7 +329,7 @@ filtering.add_argument('--strand',default="0,3",type=str,help='Minimum read numb
 filtering.add_argument('--sv_depth',default="0,10",type=str,help='Structural variant minimum depth hard and soft cutoff specified as comma separated values')
 filtering.add_argument('--sv_af',default="0.5,0.9",type=str,help='Structural variant minimum allele frequency hard cutoff specified as comma separated values')
 filtering.add_argument('--sv_len',default="100000,50000",type=str,help='Structural variant maximum size hard and soft cutoff specified as comma separated values')
-filtering.add_argument('--min_species_abundance',type=float,default=2.0,help='Minimum abundance (in %) for a species to be reported in the collated output')
+filtering.add_argument('--min_species_abundance',type=float,default=2.0,help='Minimum abundance (percent) for a species to be reported in the collated output')
 
 
 algorithm=parser_sub.add_argument_group("Algorithm options")
@@ -378,7 +378,7 @@ parser_sub.add_argument('--samples',help='File with samples (one per line)')
 parser_sub.add_argument('--dir','-d',default=".",help='Storage directory')
 parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
 parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
-parser_sub.add_argument('--min_species_abundance',type=float,default=2.0,help='Minimum abundance (in %) for a species to be reported in the collated output')
+parser_sub.add_argument('--min_species_abundance',type=float,default=2.0,help='Minimum abundance (percent) for a species to be reported in the collated output')
 parser_sub.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
 parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 parser_sub.add_argument('--temp',help="Temp firectory to process all files",type=str,default=".")
