@@ -30,8 +30,8 @@ There is a lag between new features being developed and being released on biocon
 
 ```
 mamba install bioconda::ntm-profiler
-pip install --force-reinstall git+https://github.com/jodyphelan/ntm-profiler.git@dev
-pip install --force-reinstall git+https://github.com/jodyphelan/pathogen-profiler.git@dev
+pip install --force-reinstall git+https://github.com/jodyphelan/ntm-profiler.git
+pip install --force-reinstall git+https://github.com/jodyphelan/pathogen-profiler.git
 ntm-profiler update_db
 ```
 This will install first install the latest stable release and its dependancies after which the ntm-profiler and pathogen-profiler libraries are reinstalled from the development branch. Finally, the database is also updated.
