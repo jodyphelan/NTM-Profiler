@@ -24,6 +24,20 @@ After installing, the relevant species and resistance databases can be downloade
 ntm-profiler update_db
 ```
 
+## Development version
+
+There is a lag between new features being developed and being released on bioconda. If you would like to install the latest development version of ntm-profiler you can do the following:
+
+```
+mamba install bioconda::ntm-profiler
+pip install --force-reinstall git+https://github.com/jodyphelan/ntm-profiler.git
+pip install --force-reinstall git+https://github.com/jodyphelan/pathogen-profiler.git
+ntm-profiler update_db
+```
+
+This will install first install the latest stable release and its dependancies after which the ntm-profiler and pathogen-profiler libraries are reinstalled from the development branch. Finally, the database is also updated.
+
+
 ## Running
 
 ### Predicting species/resistance
@@ -149,7 +163,7 @@ As before you can add the `--load` to automate loading of the database. Some imp
 
 ## Development 
 
-# Use latest development version
+### Using latest development version
 
 ```bash
 wget https://raw.githubusercontent.com/jodyphelan/NTM-Profiler/refs/heads/dev/conda/linux.explicit.txt

@@ -1,5 +1,5 @@
 from pathogenprofiler import models, object_list2text
-from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVariant, SpeciesPrediction, BamQC, FastaQC, VcfQC, FastqQC
+from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVariant, Species, BamQC, FastaQC, VcfQC, FastqQC
 from pydantic import BaseModel
 from typing import List, Optional,  Union
 
@@ -30,7 +30,8 @@ class Result(BaseModel):
 
 class SpeciesResult(Result):
     result_type: str = 'Species'
-    species: SpeciesPrediction
+    taxa: List[Species]
+    qc_fail_taxa: List[Species]
     qc: Union[FastqQC,FastaQC]
 
 class ProfileResult(SpeciesResult):
