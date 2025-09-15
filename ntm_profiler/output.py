@@ -248,7 +248,7 @@ def collate(args):
             row['species'] =  ";".join([hit.species for hit in result.taxa])
             row['closest-sequence'] = ";".join([hit.accession for hit in result.taxa])
             row['ANI'] = ";".join([str(hit.ani) for hit in result.taxa])
-            row['relative-abundance'] = ";".join([f"{hit.relative_abundance:.2f}%" for hit in result.taxa])
+            row['relative-abundance'] = ";".join([f"{hit.relative_abundance:.2f}" for hit in result.taxa])
         else:
             row['species'] =  None
             row['closest-sequence'] = None
