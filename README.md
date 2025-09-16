@@ -76,6 +76,16 @@ Varaints stored in VCF format can been used as input using the following command
 ntm-profiler profile --vcf /path/to/my/vcf -p my_sample_name
 ```
 
+### Summarising runs
+
+The results from numerous runs can be collated into one table using the following command:
+
+```bash
+ntm-profiler collate
+```
+
+This will automatically create a number of colled result files from all the individual result files in the current directory. If you would like to generate this file for a subset of the runs you can provide a list with the run names using the `--samples` flag. The prefix for the output files is _ntmprofiler_ by default but this can be changed with the `--prefix` flag.
+
 #### General options
 
 If you have used a reference genome with different sequence names that you have used to generate a bam/cram/vcf then it is possible to align the `ntm-profiler` databases to use the same sequence names. Please go to the custom databases section to find out more.
