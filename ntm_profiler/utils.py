@@ -14,7 +14,7 @@ def get_species(args: argparse.Namespace) -> SpeciesPrediction:
     if args.resistance_db:
         return pp.set_species(args)
     else:
-        return pp.get_sourmash_species_prediction(args)
+        return pp.get_species_prediction(args)
 
 
 
