@@ -111,8 +111,8 @@ def main_profile(args):
             args.conf = None
         else:
             args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
-    
-    if args.conf is None:
+
+    if (args.conf is None) or (args.species_only):
         if len(species_prediction.taxa)==1:
             logging.info("No resistance database found for %s" % species_prediction.taxa[0].species)
         elif len(species_prediction.taxa)>1:
