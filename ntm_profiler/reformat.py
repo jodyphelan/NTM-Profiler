@@ -58,7 +58,7 @@ def add_taxonomy_info(
     species: SpeciesPrediction,
 ) -> None:
     notes = defaultdict(list)
-    if 'taxonomy_info' in args.species_db_conf:
+    if args.species_db_conf and 'taxonomy_info' in args.species_db_conf:
         for row in csv.DictReader(open(args.species_db_conf['taxonomy_info'])):
             notes[row['gtdb_species']].append(row['notes'])
     for t in species.taxa:
