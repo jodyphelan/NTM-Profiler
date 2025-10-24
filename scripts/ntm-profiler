@@ -261,7 +261,7 @@ def main_update_db(args):
 
     pp.logging.info('\nCreating species DB')
     os.chdir('species')
-    pp.run_cmd("sourmash index sourmash.sbt.zip sourmash_sketches/*")
+    pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
     
     sylph_cmd = "--sylph_db ntm-sylph-db/db" if os.path.isfile('ntm-sylph-db/README.md') else ""
 
