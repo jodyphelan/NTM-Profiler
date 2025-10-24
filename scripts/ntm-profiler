@@ -75,7 +75,7 @@ contents of the error log (%s)
 
 def main_profile(args):
 
-    ntmp.check_for_databases(args)
+    # ntmp.check_for_databases(args)
 
     pp.process_args(args)
     if args.external_resistance_db:
@@ -111,8 +111,8 @@ def main_profile(args):
             args.conf = None
         else:
             args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
-    
-    if args.conf is None:
+
+    if (args.conf is None) or (args.species_only):
         if len(species_prediction.taxa)==1:
             logging.info("No resistance database found for %s" % species_prediction.taxa[0].species)
         elif len(species_prediction.taxa)>1:
@@ -219,8 +219,9 @@ def create_species_db(args):
 
     extra_files = {
         "sourmash_db":args.sourmash_db,
-        "sourmash_db_info":args.accessions,
-        "taxonomy_info":args.taxonomy_info
+        "accessions":args.accessions,
+        "taxonomy_info":args.taxonomy_info,
+        "sylph_db":args.sylph_db
     }
     pp.create_species_db(args,extra_files = extra_files,db_dir=args.db_dir)
 
@@ -256,11 +257,15 @@ def main_update_db(args):
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
 
+    pp.run_cmd('git submodule update --init')
 
     pp.logging.info('\nCreating species DB')
     os.chdir('species')
-    pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
-    pp.run_cmd(f'ntm-profiler create_species_db -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --db_dir {args.db_dir} --taxonomy_info taxonomy.csv --load')
+    pp.run_cmd("sourmash index sourmash.sbt.zip sourmash_sketches/*")
+    
+    sylph_cmd = "--sylph_db ntm-sylph-db/db" if os.path.isfile('ntm-sylph-db/README.md') else ""
+
+    pp.run_cmd(f'ntm-profiler create_species_db --force -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --db_dir {args.db_dir} --taxonomy_info taxonomy.csv  {sylph_cmd} --load')
     os.chdir('../')
     dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
     for d in dirs:
@@ -269,7 +274,7 @@ def main_update_db(args):
         species = json.load(open('variables.json'))['species']
         logging.info(f'\nCreating DB for {species}')
         barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
-        pp.run_cmd(f'ntm-profiler create_resistance_db --db_dir {args.db_dir} --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
+        pp.run_cmd(f'ntm-profiler create_resistance_db --force --db_dir {args.db_dir} --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
         os.chdir('../')
 
 def main_list_db(args):
@@ -335,6 +340,7 @@ algorithm=parser_sub.add_argument_group("Algorithm options")
 algorithm.add_argument('--mapper',default="bwa", choices=["bwa","minimap2","bowtie2","bwa-mem2"],help="Mapping tool to use. If you are using nanopore data it will default to minimap2",type=str)
 algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
 algorithm.add_argument('--barcode_caller',default="mpileup", choices=["mpileup","bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
+algorithm.add_argument('--taxonomic_software',default="sourmash", choices=["sourmash","sylph"],help="Variant calling tool to use",type=str)
 algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use",type=str)
 algorithm.add_argument('--coverage_tool',default="samtools", choices=["bedtools","samtools"],help="Coverage  tool to use",type=str)
 algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
@@ -415,6 +421,7 @@ parser_sub.add_argument('--barcode',type=str,help='A bed file containing lineage
 parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
 parser_sub.add_argument('--custom',action="store_true",help='Tells the script this is a custom database, this is used to alter the generation of the version file')
+parser_sub.add_argument('--force',action="store_true",help='Tells the script to force the creation of the database, even if it already exists')
 parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
 parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
 parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
@@ -434,7 +441,9 @@ parser_sub = subparsers.add_parser('create_species_db', help='Generate the files
 parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
 parser_sub.add_argument('--sourmash_db',type=str,help='The file containing species sourmash',required = True)
 parser_sub.add_argument('--accessions',type=str,help='The CSV file containing map from accessions to species',required = True)
+parser_sub.add_argument('--sylph_db',type=str,help='The directory containing sylph sketches')
 parser_sub.add_argument('--taxonomy_info',type=str,help='A CSV file containing information and notes about taxa')
+parser_sub.add_argument('--force',action="store_true",help='Tells the script to force the creation of the database, even if it already exists')
 parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
 parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
 parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
