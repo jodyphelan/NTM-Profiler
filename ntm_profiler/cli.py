@@ -286,7 +286,8 @@ def cli_update_db(args):
         species = json.load(open('variables.json'))['species']
         logging.info(f'\nCreating DB for {species}')
         barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
-        pp.run_cmd(f'ntm-profiler create_resistance_db --force --db_dir {args.db_dir} --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
+        variants_arg = "--csv variants.csv" if os.path.isfile("variants.csv") else ""
+        pp.run_cmd(f'ntm-profiler create_resistance_db --force --db_dir {args.db_dir} --prefix {species.replace(" ","_")} {variants_arg} {barcode_arg} --load')
         os.chdir('../')
 
 def cli_list_db(args):
