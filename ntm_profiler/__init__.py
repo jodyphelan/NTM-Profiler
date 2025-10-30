@@ -1,3 +1,6 @@
+"""
+NTM-Profiler: tools to profiling NTM sequence data
+"""
 from .utils import *
 from .output import *
 from .reformat import *

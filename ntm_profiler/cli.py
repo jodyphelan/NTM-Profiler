@@ -1,0 +1,470 @@
+#! /usr/bin/env python3
+import sys
+import argparse
+import ntm_profiler as ntmp
+import os
+import pathogenprofiler as pp
+from uuid import uuid4
+import json
+import glob
+import atexit
+import logging
+from rich_argparse import ArgumentDefaultsRichHelpFormatter
+from rich.logging import RichHandler
+from packaging.version import Version
+
+args = None
+
+__softwarename__ = "ntm-profiler"
+__default_data_dir__ = f'{sys.base_prefix}/share/{__softwarename__}/'
+__compatible_resistance_db_schema__ = Version("1.0.0")
+__compatible_species_db_schema__ = Version("3.0.0")
+
+def remove_temp_files(args: argparse.Namespace):
+    if len(glob.glob(f"{args.files_prefix}*"))>0:
+        for f in glob.glob(args.files_prefix+"*"):
+            pp.run_cmd(f"rm -r {f}")
+
+@atexit.register
+def cleanup():
+    if "last_traceback" in vars(sys):
+        if args.files_prefix and not args.no_cleanup:
+            sys.stderr.write("Cleaning up after failed run\n")
+            remove_temp_files(args)
+        import traceback
+        
+        if "prefix" in vars(args):
+            outfile = "%s.errlog.txt" % args.prefix
+        elif "vcf" in vars(args):
+            outfile = "%s.errlog.txt" % args.vcf.split("/")[-1]
+        elif "outfile" in vars(args):
+            outfile = "%s.errlog.txt" % args.outfile
+        else:
+            outfile = "%s.errlog.txt" % uuid4()
+        with open(outfile, "w") as O:
+            O.write("# ntm-profiler error report\n\n")
+            O.write("* OS: %s\n" % sys.platform)
+            O.write("* ntm-profiler version: %s\n" % ntmp.__version__)
+            O.write("* pathogen-profiler version: %s\n" % pp.__version__)
+            O.write("* Database version: %s\n" % args.conf["version"]) if "conf" in vars(args) else ""
+            O.write("* Program call:\n")
+            O.write("```\n")
+            O.write("%s\n" % " ".join(sys.argv))
+            O.write("```\n")
+
+            O.write("## Traceback:\n")
+            O.write("```\n")
+            traceback.print_tb(sys.last_traceback,file=O)
+            O.write("```\n")
+
+            O.write("## Value:\n")
+            O.write("```\n")
+            O.write("%s" % sys.last_value)
+            O.write("```\n")
+        logging.error("""\n
+################################# ERROR #######################################
+
+This run has failed. Please check all arguments and make sure all input files
+exist. If no solution is found, please open up an issue at
+https://github.com/jodyphelan/NTM-Profiler/issues/new and paste or attach the
+contents of the error log (%s)
+
+###############################################################################
+""" % (outfile))
+
+
+
+def cli_profile(args):
+
+    # ntmp.check_for_databases(args)
+
+    pp.process_args(args)
+    if args.external_resistance_db:
+        args.resistance_db = args.external_resistance_db
+    if args.external_species_db:
+        args.species_db = args.external_species_db
+
+
+    ### Create folders for results if they don't exist ###
+    if pp.nofolder(args.dir):
+        os.mkdir(args.dir)
+
+    if args.vcf:
+        args.run_species = False
+        if not args.resistance_db:
+            logging.error(
+                "\nSpeciation can't be perfomrmed on a VCF file so a resistance database is needed. "
+                "Specify with --resistance_db or --external_resistance_db\n",
+            )
+    
+
+    args.species_db_conf = pp.get_db(args.db_dir,args.species_db,verbose=False)
+
+    species_prediction = ntmp.get_species(args) 
+
+
+        
+    if args.resistance_db:
+        args.conf = pp.get_db(args.db_dir,args.resistance_db,verbose=False)
+    else:
+        number_of_species = len(set([t.species for t in species_prediction.taxa]))
+        if number_of_species>1:
+            args.conf = None
+        else:
+            args.conf = pp.get_resistance_db_from_species_prediction(args,species_prediction)
+
+    if (args.conf is None) or (args.species_only):
+        if len(species_prediction.taxa)==1:
+            logging.info("No resistance database found for %s" % species_prediction.taxa[0].species)
+        elif len(species_prediction.taxa)>1:
+            logging.error("Multiple species found, analysis can't continue.")
+        else:
+            logging.warning("No species prediction was made")
+        if args.bam:
+            qc = pp.run_bam_qc(args)
+        elif args.data_source == 'fastq':
+            qc = pp.get_fastq_qc(args)
+        elif args.data_source=="fasta":
+            qc = pp.run_fasta_qc(args)
+        else:
+            qc = pp.run_vcf_qc(args)
+        result = ntmp.create_species_result(args,args.prefix,species_prediction,qc)
+        ntmp.write_outputs(args,result)
+        remove_temp_files(args)
+        quit(0)
+    
+
+    
+
+    
+    pp.process_args(args)
+
+    variants_profile = pp.run_profiler(args)
+    if 'rules' in args.conf:
+        rules_applied = pp.apply_rules(args.conf['rules'], variants_profile)
+    else:
+        rules_applied = []
+
+    # Convert variant objects to DrVariant if they cause resistance
+    for var in variants_profile:
+        var.convert_to_dr_element()
+
+    args.caller = args.barcode_caller
+    barcode_result = pp.run_barcoder(args)
+
+    if args.data_source in ('bam','fastq'):
+        qc = pp.run_bam_qc(args)
+    elif args.data_source=="fasta":
+        qc = pp.run_fasta_qc(args)
+    else:
+        qc = pp.run_vcf_qc(args)
+
+
+    notes = []
+    for rule in rules_applied:
+        notes.append(f"Rule applied: {rule}")
+    result = ntmp.create_resistance_result(
+        args=args,
+        id=args.prefix,
+        species=species_prediction,
+        genetic_elements=variants_profile,
+        barcode=barcode_result,
+        qc=qc,
+        notes = notes,
+        resistance_db=args.conf['version']
+
+    )
+
+
+    
+
+    ntmp.write_outputs(args,result)
+
+    if args.consensus:
+        pp.consensus.cli_prepare_sample_consensus(
+            sample=args.prefix,
+            input_vcf="%s.vcf.gz" % args.files_prefix,
+            args=args,
+        )
+
+    ### Move files to respective directories ###
+    result_files = {
+        "%s.delly.bcf" % args.files_prefix: "%s/%s.delly.bcf" % (args.dir,args.prefix),
+        "%s.targets.csq.vcf.gz" % args.files_prefix: "%s/%s.targets.csq.vcf.gz" % (args.dir,args.prefix),
+        "%s.vcf.gz" % args.files_prefix: "%s/%s.vcf.gz" % (args.dir,args.prefix),
+        "%s.bam" % args.files_prefix: "%s/%s.bam" % (args.dir,args.prefix),
+        "%s.bam.bai" % args.files_prefix: "%s/%s.bam.bai" % (args.dir,args.prefix),
+        "%s.consensus.fa" % args.files_prefix: "%s/%s.consensus.fa" % (args.dir,args.prefix),
+    }
+
+    for file,target in result_files.items():
+        if os.path.isfile(file):
+            os.rename(file,target)
+
+    if not args.no_cleanup:
+        pp.run_cmd(f"rm {args.files_prefix}*")
+
+
+def check_db_schema_version(dbtype):
+    current_path = os.getcwd()
+    variables_filename = os.path.join(current_path, 'variables.json')
+    if not os.path.isfile(variables_filename):
+        logging.error(f"Could not find {variables_filename}")
+        quit(1)
+    variables = json.load(open(variables_filename))
+    if 'db-schema-version' not in variables:
+        logging.error(f"Could not find 'db-schema-version' in {variables_filename}")
+        quit(1)
+    db_schema_version = Version(variables['db-schema-version'])
+    if dbtype == 'species' and db_schema_version.major != __compatible_species_db_schema__.major:
+        logging.error(f"Database schema version {db_schema_version} from {variables_filename} is not compatible with this version of NTM-Profiler (requires {__compatible_species_db_schema__}). Please update the database")
+        quit(1)
+    elif dbtype == 'resistance' and db_schema_version.major != __compatible_resistance_db_schema__.major:
+        logging.error(f"Database schema version {db_schema_version} from {variables_filename} is not compatible with this version of NTM-Profiler (requires {__compatible_resistance_db_schema__}). Please update the database")
+        quit(1)
+
+
+def create_species_db(args):
+    check_db_schema_version('species')
+
+    extra_files = {
+        "sourmash_db":args.sourmash_db,
+        "accessions":args.accessions,
+        "taxonomy_info":args.taxonomy_info,
+        "sylph_db":args.sylph_db
+    }
+    pp.create_species_db(args,extra_files = extra_files,db_dir=args.db_dir)
+
+def create_resistance_db(args):
+    check_db_schema_version('resistance')
+
+    extra_files = {}
+    if args.barcode:
+        extra_files["barcode"] = args.barcode
+    if os.path.isfile("mask.bed"):
+        extra_files["bedmask"] = "mask.bed"
+    pp.create_db(args,extra_files=extra_files)
+
+
+def cli_collate(args):
+    ntmp.check_for_databases(args)
+    ntmp.collate(args)
+
+
+def cli_update_db(args):
+    dirname = args.repo.split("/")[-1].replace(".git","")
+    logging.debug(dirname)
+    if os.path.isdir(dirname):
+        logging.debug(f"Directory {dirname} exists, pulling latest version")
+        os.chdir(dirname)
+        pp.run_cmd('git pull')
+        os.chdir('db/')
+    else:
+        logging.debug(f"Directory {dirname} does not exist, cloning repo")
+        pp.run_cmd(f'git clone {args.repo}')
+        os.chdir(f'{dirname}/db/')
+        
+    pp.run_cmd(f'git checkout {args.branch}')
+    
+    if args.commit:
+        pp.run_cmd(f"git checkout {args.commit}")
+
+    pp.run_cmd('git submodule update --init')
+
+    pp.logging.info('\nCreating species DB')
+    os.chdir('species')
+    pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
+    
+    sylph_cmd = "--sylph_db ntm-sylph-db/db" if os.path.isfile('ntm-sylph-db/README.md') else ""
+
+    pp.run_cmd(f'ntm-profiler create_species_db --force -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --db_dir {args.db_dir} --taxonomy_info taxonomy.csv  {sylph_cmd} --load')
+    os.chdir('../')
+    dirs = [d for d in os.listdir() if os.path.isdir(d) and d!="species"]
+    for d in dirs:
+        logging.debug(f"Moving to {d}")
+        os.chdir(d)
+        species = json.load(open('variables.json'))['species']
+        logging.info(f'\nCreating DB for {species}')
+        barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""
+        pp.run_cmd(f'ntm-profiler create_resistance_db --force --db_dir {args.db_dir} --prefix {species.replace(" ","_")} --csv variants.csv {barcode_arg} --load')
+        os.chdir('../')
+
+def cli_list_db(args):
+    ntmp.check_for_databases(args)
+    dbs = pp.list_db(args.db_dir)
+    for db in dbs:
+        obj = {
+            'name': db['version'].get('name'),
+            'location': f"{args.db_dir}/{db['version']['name']}",
+            'commit': db['version'].get('commit'),
+            'author': db['version'].get('Author'),
+            'date': db['version'].get('Date')
+        }
+
+        sys.stdout.write("%(name)s\t%(commit)s\t%(author)s\t%(date)s\t%(location)s\n" % obj)
+
+
+def cli_entrypoint():
+
+    #### Argument Parsing ####
+
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('--version', action='version', version="NTM-Profiler version %s" % ntmp.__version__)
+    parent_parser.add_argument('--no_cleanup', action='store_true', help="Don't remove temporary files after run")
+    parent_parser.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
+    parent_parser.add_argument('--debug',action="store_true",help="Enable debug logging")
+    parent_parser.add_argument('--temp',help="Temp directory to process all files",type=str,default=".")
+
+    parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',parents=[parent_parser], formatter_class=ArgumentDefaultsRichHelpFormatter)
+    subparsers = parser.add_subparsers(help="Task to perform")
+
+
+    ###### Profile #######
+    parser_sub = subparsers.add_parser('profile', parents=[parent_parser], help='Run whole profiling pipeline', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    input=parser_sub.add_argument_group("Input options")
+    group = input.add_mutually_exclusive_group(required=True)
+    group.add_argument('--read1','-1',help='First read file')
+    input.add_argument('--read2','-2',help='Second read file')
+    group.add_argument('--bam','-a',help='BAM file. Make sure it has been generated using the H37Rv genome (GCA_000195955.2)')
+    group.add_argument('--fasta','-f',help='Fasta file')
+    group.add_argument('--vcf','-v',help='VCF file')
+    input.add_argument('--platform','-m',choices=["illumina","nanopore"],default="illumina",help='NGS Platform used to generate data')
+    input.add_argument('--resistance_db',help='Mutation panel name')
+    input.add_argument('--external_resistance_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
+    input.add_argument('--species_db',default='ntmdb',help='Mutation panel name')
+    input.add_argument('--external_species_db',type=str,help='Path to db files prefix (overrides "--db" parameter)')
+
+    output=parser_sub.add_argument_group("Output options")
+    output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
+    output.add_argument('--dir','-d',default=".",help='Storage directory')
+    output.add_argument('--csv',action="store_true",help="Add CSV output")
+    output.add_argument('--txt',action="store_true",help="Add text output")
+    output.add_argument('--add_columns',default=None,type=str,help="Add additional columns found in the mutation database to the text and csv results")
+    output.add_argument('--add_mutation_metadata',action="store_true",help=argparse.SUPPRESS)
+    output.add_argument('--call_whole_genome',action="store_true",help="Call whole genome")
+    output.add_argument('--consensus',action="store_true",help="Create consensus sequence")
+    
+    output.add_argument('--low_dp_mask','--low-dp-mask',help=argparse.SUPPRESS)
+    output.add_argument('--save_low_dp_mask','--save-low-dp-mask',action='store_true',help=argparse.SUPPRESS)
+    output.add_argument('--save_consensus','--save-consensus',action='store_true',help=argparse.SUPPRESS)
+
+    filtering=parser_sub.add_argument_group("Variant filtering options")
+    filtering.add_argument('--depth',default="0,10",type=str,help='Minimum depth hard and soft cutoff specified as comma separated values')
+    filtering.add_argument('--af',default="0,0.1",type=str,help='Minimum allele frequency hard and soft cutoff specified as comma separated values')
+    filtering.add_argument('--strand',default="0,3",type=str,help='Minimum read number per strand hard and soft cutoff specified as comma separated values')
+    filtering.add_argument('--sv_depth',default="0,10",type=str,help='Structural variant minimum depth hard and soft cutoff specified as comma separated values')
+    filtering.add_argument('--sv_af',default="0.5,0.9",type=str,help='Structural variant minimum allele frequency hard cutoff specified as comma separated values')
+    filtering.add_argument('--sv_len',default="100000,50000",type=str,help='Structural variant maximum size hard and soft cutoff specified as comma separated values')
+    filtering.add_argument('--min_species_relative_abundance',type=float,default=2.0,help='Minimum abundance (percent) for a species to be reported in the collated output')
+
+
+    algorithm=parser_sub.add_argument_group("Algorithm options")
+    algorithm.add_argument('--mapper',default="bwa", choices=["bwa","minimap2","bowtie2","bwa-mem2"],help="Mapping tool to use. If you are using nanopore data it will default to minimap2",type=str)
+    algorithm.add_argument('--caller',default="freebayes", choices=["bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
+    algorithm.add_argument('--barcode_caller',default="mpileup", choices=["mpileup","bcftools","gatk","freebayes"],help="Variant calling tool to use",type=str)
+    algorithm.add_argument('--taxonomic_software',default="sourmash", choices=["sourmash","sylph"],help="Variant calling tool to use",type=str)
+    algorithm.add_argument('--kmer_counter',default="kmc", choices=["kmc","dsk"],help="Kmer counting tool to use",type=str)
+    algorithm.add_argument('--coverage_tool',default="samtools", choices=["bedtools","samtools"],help="Coverage  tool to use",type=str)
+    algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
+    algorithm.add_argument('--species_only',action="store_true",help="Predict species and quit")
+    algorithm.add_argument('--no_species',action="store_false",dest="run_species",help="Skip species prediction")
+    algorithm.add_argument('--no_trim',action="store_true",help="Don't trim files using trimmomatic")
+    algorithm.add_argument('--no_coverage_qc',action="store_true",help="Don't collect coverage statistics")
+    algorithm.add_argument('--no_clip',action="store_false",help="Don't clip reads")
+    algorithm.add_argument('--no_delly',action="store_true",help="Don't run delly")
+    algorithm.add_argument('--no_mash',action="store_true",help="Don't run mash if kmers speciation fails")
+    algorithm.add_argument('--no_samclip',action="store_true",help="Don't run mash if kmers speciation fails")
+    algorithm.add_argument('--output_kmer_counts',action="store_true",help=argparse.SUPPRESS)
+    algorithm.add_argument('--add_variant_annotations',action="store_true",help=argparse.SUPPRESS)
+    algorithm.add_argument('--threads','-t',default=1,help='Threads to use',type=int)
+    algorithm.add_argument('--ram',default=8,help='Max memory to use',type=int)
+
+    other=parser_sub.add_argument_group("Other options")
+    other.add_argument('--supplementary_bam',help=argparse.SUPPRESS)
+    other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
+    other.add_argument('--barcode_stdev',type=float,default=0.15,help=argparse.SUPPRESS)
+    other.add_argument('--barcode_snps','--barcode-snps',help='Dump barcoding mutations to a file')
+    other.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
+    parser_sub.set_defaults(func=cli_profile)
+
+
+    # Collate results #
+    parser_sub = subparsers.add_parser('collate', help='Collate results form multiple samples together', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub.add_argument('--outfile','-o',default="ntmprofiler.collate.txt",help='Sample prefix')
+    parser_sub.add_argument('--samples',help='File with samples (one per line)')
+    parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
+    parser_sub.add_argument('--format',default="txt",choices=["txt","csv"],type=str,help='Output file type')
+    parser_sub.add_argument('--min_species_relative_abundance',type=float,default=2.0,help='Minimum abundance (percent) for a species to be reported in the collated output')
+    parser_sub.set_defaults(func=cli_collate)
+
+
+
+
+
+    # Update database #
+    parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub.add_argument('--repo','-r',default="https://github.com/pathogen-profiler/ntm-db.git",help='Repository to pull from')
+    parser_sub.add_argument('--branch','-b',default="main",help='Storage directory')
+    parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (default: latest)')
+    parser_sub.set_defaults(func=cli_update_db)
+
+
+
+
+    # Create resistance DB #
+    parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the files required to run resistance profiling with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database (match species name for automated speciation+resistance detection)',required = True)
+    parser_sub.add_argument('--csv','-c',type=str,help='The CSV file containing mutations')
+    parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
+    parser_sub.add_argument('--watchlist','-w',default="gene_watchlist.csv",type=str,help='A csv file containing genes to profile but without any specific associated mutations')
+    parser_sub.add_argument('--barcode',type=str,help='A bed file containing lineage barcode SNPs')
+    parser_sub.add_argument('--match_ref',type=str,help='The prefix for all output files')
+    parser_sub.add_argument('--other_annotations',type=str,help='The prefix for all output files')
+    parser_sub.add_argument('--custom',action="store_true",help='Tells the script this is a custom database, this is used to alter the generation of the version file')
+    parser_sub.add_argument('--force',action="store_true",help='Tells the script to force the creation of the database, even if it already exists')
+    parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
+    parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
+    parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
+    parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
+    parser_sub.add_argument('--include_original_mutation',action="store_true", help='Include the original mutation (before reformatting) as part of the variant annotaion')
+    parser_sub.set_defaults(func=create_resistance_db)
+
+
+
+    parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run speciation with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
+    parser_sub.add_argument('--sourmash_db',type=str,help='The file containing species sourmash',required = True)
+    parser_sub.add_argument('--accessions',type=str,help='The CSV file containing map from accessions to species',required = True)
+    parser_sub.add_argument('--sylph_db',type=str,help='The directory containing sylph sketches')
+    parser_sub.add_argument('--taxonomy_info',type=str,help='A CSV file containing information and notes about taxa')
+    parser_sub.add_argument('--force',action="store_true",help='Tells the script to force the creation of the database, even if it already exists')
+    parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
+    parser_sub.add_argument('--db-name',help='Overrides the name of the database in the version file')
+    parser_sub.add_argument('--db-commit',help='Overrides the commit string of the database in the version file')
+    parser_sub.add_argument('--db-author',help='Overrides the author of the database in the version file')
+    parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
+    parser_sub.set_defaults(func=create_species_db)
+
+    parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
+    parser_sub.set_defaults(func=cli_list_db)
+
+    global args
+    args = parser.parse_args()
+
+    if args.debug:
+        args.logging = "DEBUG"
+
+    logging.basicConfig(
+        level=args.logging, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+    )
+
+    args.software_name = __softwarename__
+    args.software_version = ntmp.__version__
+    args.tmp_prefix = str(uuid4())
+    args.files_prefix = f"{args.temp}/{args.tmp_prefix}"
+
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        parser.print_help(sys.stderr)
