@@ -315,6 +315,7 @@ def cli_entrypoint():
     parent_parser.add_argument('--debug',action="store_true",help="Enable debug logging")
     parent_parser.add_argument('--temp',help="Temp directory to process all files",type=str,default=".")
     parent_parser.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
+    parent_parser.add_argument('--dir','-d',default=".",help='Storage directory')
 
     parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',parents=[parent_parser], formatter_class=ArgumentDefaultsRichHelpFormatter)
     subparsers = parser.add_subparsers(help="Task to perform")
@@ -337,7 +338,6 @@ def cli_entrypoint():
 
     output=parser_sub.add_argument_group("Output options")
     output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
-    output.add_argument('--dir','-d',default=".",help='Storage directory')
     output.add_argument('--csv',action="store_true",help="Add CSV output")
     output.add_argument('--txt',action="store_true",help="Add text output")
     output.add_argument('--add_columns',default=None,type=str,help="Add additional columns found in the mutation database to the text and csv results")
