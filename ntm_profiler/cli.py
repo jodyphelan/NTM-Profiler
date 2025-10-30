@@ -314,6 +314,7 @@ def cli_entrypoint():
     parent_parser.add_argument('--logging',type=str.upper,default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
     parent_parser.add_argument('--debug',action="store_true",help="Enable debug logging")
     parent_parser.add_argument('--temp',help="Temp directory to process all files",type=str,default=".")
+    parent_parser.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
 
     parser = argparse.ArgumentParser(description='NTM-Profiler pipeline',parents=[parent_parser], formatter_class=ArgumentDefaultsRichHelpFormatter)
     subparsers = parser.add_subparsers(help="Task to perform")
@@ -384,7 +385,6 @@ def cli_entrypoint():
     other.add_argument('--delly_vcf',help=argparse.SUPPRESS)
     other.add_argument('--barcode_stdev',type=float,default=0.15,help=argparse.SUPPRESS)
     other.add_argument('--barcode_snps','--barcode-snps',help='Dump barcoding mutations to a file')
-    other.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
     parser_sub.set_defaults(func=cli_profile)
 
 
@@ -446,7 +446,6 @@ def cli_entrypoint():
     parser_sub.set_defaults(func=create_species_db)
 
     parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
-    parser_sub.add_argument('--db_dir',type=os.path.abspath,default=__default_data_dir__,help='Storage directory')
     parser_sub.set_defaults(func=cli_list_db)
 
     global args
