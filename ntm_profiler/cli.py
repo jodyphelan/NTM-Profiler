@@ -389,7 +389,7 @@ def cli_entrypoint():
 
 
     # Collate results #
-    parser_sub = subparsers.add_parser('collate', help='Collate results form multiple samples together', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub = subparsers.add_parser('collate', parents=[parent_parser], help='Collate results form multiple samples together', formatter_class=ArgumentDefaultsRichHelpFormatter)
     parser_sub.add_argument('--outfile','-o',default="ntmprofiler.collate.txt",help='Sample prefix')
     parser_sub.add_argument('--samples',help='File with samples (one per line)')
     parser_sub.add_argument('--suffix',default=".results.json",type=str,help='Input results files suffix')
@@ -402,7 +402,7 @@ def cli_entrypoint():
 
 
     # Update database #
-    parser_sub = subparsers.add_parser('update_db', help='Update all databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub = subparsers.add_parser('update_db', parents=[parent_parser], help='Update all databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
     parser_sub.add_argument('--repo','-r',default="https://github.com/pathogen-profiler/ntm-db.git",help='Repository to pull from')
     parser_sub.add_argument('--branch','-b',default="main",help='Storage directory')
     parser_sub.add_argument('--commit','-c',help='Git commit hash to checkout (default: latest)')
@@ -412,7 +412,7 @@ def cli_entrypoint():
 
 
     # Create resistance DB #
-    parser_sub = subparsers.add_parser('create_resistance_db', help='Generate the files required to run resistance profiling with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub = subparsers.add_parser('create_resistance_db', parents=[parent_parser], help='Generate the files required to run resistance profiling with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
     parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database (match species name for automated speciation+resistance detection)',required = True)
     parser_sub.add_argument('--csv','-c',type=str,help='The CSV file containing mutations')
     parser_sub.add_argument('--load',action="store_true",help='Load the library after creating it')
@@ -431,7 +431,7 @@ def cli_entrypoint():
 
 
 
-    parser_sub = subparsers.add_parser('create_species_db', help='Generate the files required to run speciation with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub = subparsers.add_parser('create_species_db', parents=[parent_parser], help='Generate the files required to run speciation with NTM-Profiler', formatter_class=ArgumentDefaultsRichHelpFormatter)
     parser_sub.add_argument('--prefix','-p',type=str,help='The name of the database',required = True)
     parser_sub.add_argument('--sourmash_db',type=str,help='The file containing species sourmash',required = True)
     parser_sub.add_argument('--accessions',type=str,help='The CSV file containing map from accessions to species',required = True)
@@ -445,7 +445,7 @@ def cli_entrypoint():
     parser_sub.add_argument('--db-date',help='Overrides the date of the database in the version file')
     parser_sub.set_defaults(func=create_species_db)
 
-    parser_sub = subparsers.add_parser('list_db', help='List loaded databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser_sub = subparsers.add_parser('list_db', parents=[parent_parser], help='List loaded databases', formatter_class=ArgumentDefaultsRichHelpFormatter)
     parser_sub.set_defaults(func=cli_list_db)
 
     global args
