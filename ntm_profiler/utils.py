@@ -33,8 +33,7 @@ def merge_sourmash_species(sourmash_hits: SpeciesPrediction) -> None:
     species_objects = []
     if len(sourmash_hits.taxa) == 0:
         return
-    # if 'abundance' not in sourmash_hits.taxa[0].prediction_info:
-    #     return
+
     for species in species_detected:
         hits = [t for t in sourmash_hits.taxa if t.species == species]
         hits = sorted(hits,key=lambda x: x.abundance,reverse=True)
