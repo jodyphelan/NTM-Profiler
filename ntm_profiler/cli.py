@@ -34,7 +34,7 @@ def cleanup():
             sys.stderr.write("Cleaning up after failed run\n")
             remove_temp_files(args)
         import traceback
-        
+
         if "prefix" in vars(args):
             outfile = "%s.errlog.txt" % args.prefix
         elif "vcf" in vars(args):
@@ -78,11 +78,9 @@ contents of the error log (%s)
 
 def cli_profile(args):
 
-    # ntmp.check_for_databases(args)
+    ntmp.check_for_databases(args)
 
     pp.process_args(args)
-
-
 
     ### Create folders for results if they don't exist ###
     if pp.nofolder(args.dir):
@@ -95,14 +93,11 @@ def cli_profile(args):
                 "\nSpeciation can't be perfomrmed on a VCF file so a resistance database is needed. "
                 "Specify with --resistance_db or --external_resistance_db\n",
             )
-    
 
-    args.species_db_conf = pp.get_db(args.db_dir,args.species_db,verbose=False)
+    args.species_conf = pp.get_db(args.db_dir,args.species_db,verbose=False)
 
     species_prediction = ntmp.get_species(args) 
 
-
-        
     if args.resistance_db:
         args.conf = pp.get_db(args.db_dir,args.resistance_db,verbose=False)
     else:
@@ -131,11 +126,7 @@ def cli_profile(args):
         ntmp.write_outputs(args,result)
         remove_temp_files(args)
         quit(0)
-    
 
-    
-
-    
     pp.process_args(args)
 
     variants_profile = pp.run_profiler(args)
@@ -173,11 +164,7 @@ def cli_profile(args):
         qc=qc,
         notes = notes,
         resistance_db=args.conf['version']
-
     )
-
-
-    
 
     ntmp.write_outputs(args,result)
 
@@ -293,9 +280,9 @@ def cli_update_db(args):
         logging.debug(f"Directory {dirname} does not exist, cloning repo")
         pp.run_cmd(f'git clone {args.repo}')
         os.chdir(f'{dirname}/db/')
-        
+
     pp.run_cmd(f'git checkout {args.branch}')
-    
+
     if args.commit:
         pp.run_cmd(f"git checkout {args.commit}")
 
@@ -305,7 +292,7 @@ def cli_update_db(args):
     os.chdir('species')
     check_db_schema_version('species')
     pp.run_cmd("sourmash index sourmash.sbt.zip sketches/*")
-    
+
     sylph_cmd = "--sylph_db ntm-sylph-db/db" if os.path.isfile('ntm-sylph-db/README.md') else ""
 
     pp.run_cmd(f'ntm-profiler create_species_db --force -p ntmdb --sourmash_db sourmash.sbt.zip --accessions accessions.csv --db_dir {args.db_dir} --taxonomy_info taxonomy.csv  {sylph_cmd} --load')
@@ -381,7 +368,6 @@ def cli_entrypoint():
     output.add_argument('--call_whole_genome',action="store_true",help="Call whole genome")
     output.add_argument('--consensus',action="store_true",help="Create consensus sequence")
     output.add_argument('--dist_db_name',default='ntm-profiler-dists.db',help="Default name for SNP-dist DB")
-    
     output.add_argument('--low_dp_mask','--low-dp-mask',help=argparse.SUPPRESS)
     output.add_argument('--save_low_dp_mask','--save-low-dp-mask',action='store_true',help=argparse.SUPPRESS)
     output.add_argument('--save_consensus','--save-consensus',action='store_true',help=argparse.SUPPRESS)

@@ -32,7 +32,7 @@ def split_variants_on_filter(elements):
 def get_pipeline_object(args: argparse.Namespace) -> Pipeline:
     return Pipeline(
         software_version=args.software_version,
-        species_db_version=args.species_db_conf['version'] if args.species_db_conf else None,
+        species_db_version=args.species_conf['version'] if args.species_conf else None,
         resistance_db_version=args.conf['version'] if args.conf else None,
         software=get_software_used()
     )
@@ -58,8 +58,8 @@ def add_taxonomy_info(
     species: SpeciesPrediction,
 ) -> None:
     notes = defaultdict(list)
-    if args.species_db_conf and 'taxonomy_info' in args.species_db_conf:
-        for row in csv.DictReader(open(args.species_db_conf['taxonomy_info'])):
+    if args.species_conf and 'taxonomy_info' in args.species_conf:
+        for row in csv.DictReader(open(args.species_conf['taxonomy_info'])):
             notes[row['gtdb_species']].append(row['notes'])
     for t in species.taxa:
         if t.species in notes:
