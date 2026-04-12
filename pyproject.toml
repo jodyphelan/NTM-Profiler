@@ -9,6 +9,16 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dynamic = ["version", "description"]
+dependencies = [
+    "pydantic>=2.6",
+    "pathogen-profiler",
+    "rich-argparse",
+    "packaging",
+    "tqdm",
+    "jinja2",
+    "pandas",
+    "pysylph"
+]
 
 [project.scripts]
 ntm-profiler = "ntm_profiler:cli.cli_entrypoint"
