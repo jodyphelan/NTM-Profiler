@@ -148,8 +148,8 @@ def cli_profile(args):
     for var in variants_profile:
         var.convert_to_dr_element()
 
-    args.caller = args.barcode_caller
-    barcode_result = pp.run_barcoder(args)
+
+    barcode_result = pp.run_barcoder(args, caller=args.barcode_caller)
 
     if args.data_source in ('bam','fastq'):
         qc = pp.run_bam_qc(args)
@@ -182,10 +182,16 @@ def cli_profile(args):
     ntmp.write_outputs(args,result)
 
     if args.consensus:
+        strain = None
+        if barcode_result not in (None, []):
+            if len(barcode_result)==1:
+                strain = barcode_result[0].id
+                print(f"Strain is {strain}")
         consensus_filename = pp.consensus.cli_prepare_sample_consensus(
             sample=args.prefix,
             input_vcf="%s.vcf.gz" % args.files_prefix,
             args=args,
+            strain=strain
         )
 
     if args.snp_dist:
@@ -384,7 +390,6 @@ def cli_entrypoint():
     
     output.add_argument('--low_dp_mask','--low-dp-mask',help=argparse.SUPPRESS)
     output.add_argument('--save_low_dp_mask','--save-low-dp-mask',action='store_true',help=argparse.SUPPRESS)
-    output.add_argument('--save_consensus','--save-consensus',action='store_true',help=argparse.SUPPRESS)
 
     filtering=parser_sub.add_argument_group("Variant filtering options")
     filtering.add_argument('--depth',default="0,10",type=str,help='Minimum depth hard and soft cutoff specified as comma separated values')
