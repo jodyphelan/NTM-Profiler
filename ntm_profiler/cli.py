@@ -87,7 +87,7 @@ def cli_profile(args):
         os.mkdir(args.dir)
 
     if args.vcf:
-        args.run_species = False
+        args.no_species = True
         if not args.resistance_db:
             logging.error(
                 "\nSpeciation can't be perfomrmed on a VCF file so a resistance database is needed. "
@@ -397,7 +397,7 @@ def cli_entrypoint():
     algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
     algorithm.add_argument('--snp_dist','--snp-dist',type=int,help="Store variant set and get all samples with snp distance less than this cutoff (experimental feature)")
     algorithm.add_argument('--species_only',action="store_true",help="Predict species and quit")
-    algorithm.add_argument('--no_species',action="store_false",dest="run_species",help="Skip species prediction")
+    algorithm.add_argument('--no_species',action="store_true",help="Skip species prediction")
     algorithm.add_argument('--no_trim',action="store_true",help="Don't trim files using trimmomatic")
     algorithm.add_argument('--no_coverage_qc',action="store_true",help="Don't collect coverage statistics")
     algorithm.add_argument('--no_clip',action="store_false",help="Don't clip reads")
