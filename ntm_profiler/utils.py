@@ -14,7 +14,10 @@ def check_for_databases(args: argparse.Namespace):
 
 def get_species(args: argparse.Namespace) -> SpeciesPrediction:
     if args.resistance_db:
-        return pp.set_species(args)
+        if args.no_species:
+            return pp.set_species(args)
+        else:
+            return pp.get_species_prediction(args)
     else:
         return pp.get_species_prediction(args)
 
