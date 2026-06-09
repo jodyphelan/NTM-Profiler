@@ -87,7 +87,7 @@ def cli_profile(args):
         os.mkdir(args.dir)
 
     if args.vcf:
-        args.run_species = False
+        args.no_species = True
         if not args.resistance_db:
             logging.error(
                 "\nSpeciation can't be perfomrmed on a VCF file so a resistance database is needed. "
@@ -139,8 +139,8 @@ def cli_profile(args):
     for var in variants_profile:
         var.convert_to_dr_element()
 
-    args.caller = args.barcode_caller
-    barcode_result = pp.run_barcoder(args)
+
+    barcode_result = pp.run_barcoder(args, caller=args.barcode_caller)
 
     if args.data_source in ('bam','fastq'):
         qc = pp.run_bam_qc(args)
@@ -169,10 +169,17 @@ def cli_profile(args):
     ntmp.write_outputs(args,result)
 
     if args.consensus:
+        strain = None
+        if barcode_result not in (None, []):
+            if len(barcode_result)==1:
+                strain = barcode_result[0].id
+                print(f"Strain is {strain}")
         consensus_filename = pp.consensus.cli_prepare_sample_consensus(
             sample=args.prefix,
             input_vcf="%s.vcf.gz" % args.files_prefix,
             args=args,
+            strain=strain,
+            reference=args.strain_reference
         )
 
     if args.snp_dist:
@@ -358,6 +365,7 @@ def cli_entrypoint():
     input.add_argument('--platform','-m',choices=["illumina","nanopore"],default="illumina",help='NGS Platform used to generate data')
     input.add_argument('--resistance_db',help='Mutation panel name')
     input.add_argument('--species_db',default='ntmdb',help='Mutation panel name')
+    input.add_argument('--strain_reference',help='Reference genome to use for consensus genome creation')
 
     output=parser_sub.add_argument_group("Output options")
     output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
@@ -370,7 +378,6 @@ def cli_entrypoint():
     output.add_argument('--dist_db_name',default='ntm-profiler-dists.db',help="Default name for SNP-dist DB")
     output.add_argument('--low_dp_mask','--low-dp-mask',help=argparse.SUPPRESS)
     output.add_argument('--save_low_dp_mask','--save-low-dp-mask',action='store_true',help=argparse.SUPPRESS)
-    output.add_argument('--save_consensus','--save-consensus',action='store_true',help=argparse.SUPPRESS)
 
     filtering=parser_sub.add_argument_group("Variant filtering options")
     filtering.add_argument('--depth',default="0,10",type=str,help='Minimum depth hard and soft cutoff specified as comma separated values')
@@ -392,7 +399,7 @@ def cli_entrypoint():
     algorithm.add_argument('--calling_params',type=str,help='Override default parameters for variant calling')
     algorithm.add_argument('--snp_dist','--snp-dist',type=int,help="Store variant set and get all samples with snp distance less than this cutoff (experimental feature)")
     algorithm.add_argument('--species_only',action="store_true",help="Predict species and quit")
-    algorithm.add_argument('--no_species',action="store_false",dest="run_species",help="Skip species prediction")
+    algorithm.add_argument('--no_species',action="store_true",help="Skip species prediction")
     algorithm.add_argument('--no_trim',action="store_true",help="Don't trim files using trimmomatic")
     algorithm.add_argument('--no_coverage_qc',action="store_true",help="Don't collect coverage statistics")
     algorithm.add_argument('--no_clip',action="store_false",help="Don't clip reads")

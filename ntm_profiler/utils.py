@@ -14,7 +14,10 @@ def check_for_databases(args: argparse.Namespace):
 
 def get_species(args: argparse.Namespace) -> SpeciesPrediction:
     if args.resistance_db:
-        return pp.set_species(args)
+        if args.no_species:
+            return pp.set_species(args)
+        else:
+            return pp.get_species_prediction(args)
     else:
         return pp.get_species_prediction(args)
 
@@ -33,8 +36,7 @@ def merge_sourmash_species(sourmash_hits: SpeciesPrediction) -> None:
     species_objects = []
     if len(sourmash_hits.taxa) == 0:
         return
-    # if 'abundance' not in sourmash_hits.taxa[0].prediction_info:
-    #     return
+
     for species in species_detected:
         hits = [t for t in sourmash_hits.taxa if t.species == species]
         hits = sorted(hits,key=lambda x: x.abundance,reverse=True)
