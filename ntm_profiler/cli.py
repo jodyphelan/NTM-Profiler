@@ -178,7 +178,8 @@ def cli_profile(args):
             sample=args.prefix,
             input_vcf="%s.vcf.gz" % args.files_prefix,
             args=args,
-            strain=strain
+            strain=strain,
+            reference=args.strain_reference
         )
 
     if args.snp_dist:
@@ -364,6 +365,7 @@ def cli_entrypoint():
     input.add_argument('--platform','-m',choices=["illumina","nanopore"],default="illumina",help='NGS Platform used to generate data')
     input.add_argument('--resistance_db',help='Mutation panel name')
     input.add_argument('--species_db',default='ntmdb',help='Mutation panel name')
+    input.add_argument('--strain_reference',help='Reference genome to use for consensus genome creation')
 
     output=parser_sub.add_argument_group("Output options")
     output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
