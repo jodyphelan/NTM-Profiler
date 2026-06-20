@@ -48,7 +48,7 @@ def cleanup():
             O.write("* OS: %s\n" % sys.platform)
             O.write("* ntm-profiler version: %s\n" % ntmp.__version__)
             O.write("* pathogen-profiler version: %s\n" % pp.__version__)
-            O.write("* Database version: %s\n" % args.conf["version"]) if "conf" in vars(args) else ""
+            O.write("* Database version: %s\n" % args.conf["version"]) if ("conf" in vars(args) and args.conf and ("version" in args.conf)) else ""
             O.write("* Program call:\n")
             O.write("```\n")
             O.write("%s\n" % " ".join(sys.argv))
@@ -93,6 +93,7 @@ def cli_profile(args):
                 "\nSpeciation can't be perfomrmed on a VCF file so a resistance database is needed. "
                 "Specify with --resistance_db or --external_resistance_db\n",
             )
+            quit(1)
 
     args.species_conf = pp.get_db(args.db_dir,args.species_db,verbose=False)
 
@@ -371,6 +372,8 @@ def cli_entrypoint():
     output.add_argument('--prefix','-p',default="ntmprofiler",help='Sample prefix for all results generated')
     output.add_argument('--csv',action="store_true",help="Add CSV output")
     output.add_argument('--txt',action="store_true",help="Add text output")
+    output.add_argument('--docx',action="store_true",help="Add Word document output")
+    output.add_argument('--docx_template','--docx-template',help="Supply custom template for --docx output")
     output.add_argument('--add_columns',default=None,type=str,help="Add additional columns found in the mutation database to the text and csv results")
     output.add_argument('--add_mutation_metadata',action="store_true",help=argparse.SUPPRESS)
     output.add_argument('--call_whole_genome',action="store_true",help="Call whole genome")
