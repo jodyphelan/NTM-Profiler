@@ -1,9 +1,11 @@
+from datetime import datetime
+
 from pathogenprofiler import models, object_list2text
 from pathogenprofiler.models import Gene, Variant, BarcodeResult, DrGene, DrVariant, Species, BamQC, FastaQC, VcfQC, FastqQC
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional,  Union
 
-__model_schema_version__ = '1.1.0'
+__model_schema_version__ = '1.2.0'
 
 class Pipeline(BaseModel):
     """
@@ -27,6 +29,9 @@ class Result(BaseModel):
     schema_version: str = __model_schema_version__
     pipeline: Pipeline
     id: str
+    data_source: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    notes: List[str] = []
 
 class SpeciesResult(Result):
     result_type: str = 'Species'
@@ -37,7 +42,6 @@ class SpeciesResult(Result):
 class ProfileResult(SpeciesResult):
     result_type: str = 'Profile'
     resistance_db: dict
-    notes: List[str] = []
     barcode: Optional[List[BarcodeResult]] = []
     dr_variants: List[DrVariant] = []
     dr_genes: List[DrGene] = []
