@@ -43,27 +43,30 @@ def create_species_result(
     species: SpeciesPrediction,
     qc: FastqQC
 ) -> SpeciesResult:
-    add_taxonomy_info(args,species)
+    add_complex_info(args,species)
     pipeline = get_pipeline_object(args)
     return SpeciesResult(
         id=id,
+        data_source=args.data_source,
         taxa=species.taxa,
         qc_fail_taxa=species.qc_fail_taxa,
         qc= qc,
         pipeline=pipeline
     )
 
-def add_taxonomy_info(
+def add_complex_info(
     args: argparse.Namespace,
     species: SpeciesPrediction,
 ) -> None:
-    notes = defaultdict(list)
+    notes = {}
     if args.species_conf and 'taxonomy_info' in args.species_conf:
-        for row in csv.DictReader(open(args.species_conf['taxonomy_info'])):
-            notes[row['gtdb_species']].append(row['notes'])
+        for row in csv.DictReader(open(args.species_conf['taxonomy_info'],encoding='utf-8-sig')):
+            notes[row['species']] = row['complex']
+
     for t in species.taxa:
         if t.species in notes:
-            t.notes += notes[t.species]
+            t.notes.append(f"{t.species} is a member of the {notes[t.species]}")
+
 
         
 
@@ -77,11 +80,12 @@ def create_resistance_result(
     notes: List[str],
     resistance_db: dict
 ) -> ProfileResult:
-    add_taxonomy_info(args,species)
+    add_complex_info(args,species)
     pipeline = get_pipeline_object(args)
     dr_genes, other_genes, dr_variants, other_variants, fail_variants = split_variants_on_filter(genetic_elements)
     data = {
         'id':id,
+        'data_source': args.data_source,
         'resistance_db':resistance_db,
         'notes':notes,
         'dr_genes':dr_genes,

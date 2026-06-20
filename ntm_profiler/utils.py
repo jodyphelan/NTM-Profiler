@@ -1,7 +1,7 @@
 import sys
 import pathogenprofiler as pp
 import argparse
-from pathogenprofiler.models import SpeciesPrediction, DrGene, SequenceQC
+from pathogenprofiler.models import BamQC, SpeciesPrediction, DrGene, SequenceQC
 from typing import List
 import logging
 import csv
@@ -50,23 +50,41 @@ def merge_sourmash_species(sourmash_hits: SpeciesPrediction) -> None:
 def add_coverage_to_genes(genes: list, qc: SequenceQC):
     for gene in genes:
         if isinstance(gene,DrGene):
-            for target in qc.target_qc:
-                if (gene.gene_id == target.target) or (gene.gene_name == target.target):
-                    gene.coverage = target.percent_depth_pass
+            # if qc is BamQC
+            if isinstance(qc, BamQC):
+                for target in qc.target_qc:
+                    if (gene.gene_id == target.target) or (gene.gene_name == target.target):
+                        gene.coverage = target.percent_depth_pass
+            else:
+                logging.warning(f"Cannot add coverage to {gene.gene_name} as QC is not BamQC")
 
 def filter_low_coverage_genes(resistance_determinants: list,input_type: str,cutoff=90) -> list:
     new_list = []
     for d in resistance_determinants:
         if isinstance(d, DrGene):
-            logging.debug(f"Checking {d.gene_name} coverage: {d.coverage} against cutoff {cutoff}")
+
             if input_type in ('fasta','bam'):
+                logging.debug(f"Checking {d.gene_name} coverage: {d.coverage} against cutoff {cutoff}")
                 if d.coverage<cutoff:
                     logging.debug(f"Removing {d.gene_name} coverage ({d.coverage}) is less than cutoff {cutoff}")
                     continue
         new_list.append(d)
     return new_list
 
+def get_gene2drugs(bed_file):
+    lt2drugs = {}
+    for l in open(bed_file):
+        row = l.strip().split()
+        lt2drugs[row[4]] = row[5].split(",")
+    return lt2drugs
 
+def rv2genes(bed_file):
+    #Chromosome      759310  763325  Rv0667  rpoB    rifampicin
+    rv2gene = {}
+    for l in open(bed_file):
+        row = l.strip().split()
+        rv2gene[row[3]] = row[4]
+    return rv2gene
 
 def reformat_variant_csv_file(filename: str, outfile: str) -> str:
     rows = []

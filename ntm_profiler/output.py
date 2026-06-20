@@ -11,6 +11,7 @@ import jinja2
 import logging
 from .models import ProfileResult, SpeciesResult, Result
 from typing import List, Tuple, Optional
+from .docx import write_docx
 
 def write_outputs(args,result: ProfileResult):
     logging.info("\nWriting outputs")
@@ -27,6 +28,10 @@ def write_outputs(args,result: ProfileResult):
     if args.csv:
         logging.info(f"Writing csv file: {csv_output}")
         write_text(result,args.conf,csv_output,sep=",")
+    if args.docx:
+        docx_output = args.dir+"/"+args.prefix+".results.docx"
+        logging.info(f"Writing docx file: {docx_output}")
+        write_docx(result,args.conf,docx_output,template_file = args.docx_template)
 
 default_template = """
 NTM-Profiler report
