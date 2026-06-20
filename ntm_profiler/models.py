@@ -29,7 +29,7 @@ class Result(BaseModel):
     schema_version: str = __model_schema_version__
     pipeline: Pipeline
     id: str
-    data_source: str
+    data_source: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.now)
     notes: List[str] = []
 
