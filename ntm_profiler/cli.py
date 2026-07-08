@@ -19,7 +19,7 @@ args = None
 
 __softwarename__ = "ntm-profiler"
 __default_data_dir__ = f'{sys.base_prefix}/share/{__softwarename__}/'
-__compatible_resistance_db_schema__ = Version("2.0.0")
+__compatible_resistance_db_schema__ = Version("4.0.0")
 __compatible_species_db_schema__ = Version("4.0.0")
 
 def remove_temp_files(args: argparse.Namespace):
@@ -309,11 +309,11 @@ def cli_update_db(args):
         logging.debug(f"Moving to {d}")
         os.chdir(d)
         ignore = json.load(open('variables.json')).get('ntm-profiler-ignore',False)
-        check_db_schema_version('resistance')
         if ignore:
             logging.info(f'Skipping creation of resistance DB for {d} as it is marked to be ignored')
             os.chdir('../')
             continue
+        check_db_schema_version('resistance')
         species = json.load(open('variables.json'))['species']
         logging.info(f'\nCreating DB for {species}')
         barcode_arg = "--barcode barcode.bed" if os.path.isfile("barcode.bed") else ""

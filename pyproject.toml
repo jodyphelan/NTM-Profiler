@@ -15,9 +15,7 @@ dependencies = [
     "rich-argparse",
     "packaging",
     "tqdm",
-    "jinja2",
-    "pandas",
-    "pysylph"
+    "jinja2"
 ]
 
 [project.scripts]
