@@ -1,6 +1,6 @@
 # NTM-Profiler
 
-This repository hosts the code for **NTM-Profiler**. A tool to predict species and drug resistance from NTM WGS data.
+This repository hosts the code for **NTM-Profiler**. A tool to predict species and drug resistance from NTM WGS data. For Research Use Only.
 
 Please beware that this tools is in alpha testing and should not yet be considered for production use. If you would like to get involved and help out with testing or development please drop me a line through the issues tab.
 
@@ -103,12 +103,7 @@ A full list of arguments can be found by running `ntm-profiler profile -h`
 Species prediction is performed by looking for pre-detemined kmers in read files which belong to a specific species. If no species is found using this method, mash is run using a database of all Mycobacteria sequences from GTDB to find the top 10 closest genomes.
 
 ### Resistance prediction
-Resistance prediction is performed by aligning the read data to a species-specific reference genome and looking for resistance associated genes and variants. The reference and resistance database is stored in the [ntmdb github repo](https://github.com/jodyphelan/ntmdb). At the moment resistance prediction is available for:
-
-* _Mycobacterium leprae_
-* _Mycobacteroides abscessus subsp. abscessus_
-* _Mycobacteroides abscessus subsp. bolletii_
-* _Mycobacteroides abscessus subsp. massiliense_
+Resistance prediction is performed by aligning the read data to a species-specific reference genome and looking for resistance associated genes and variants. The reference and resistance databases are stored in the [ntmdb github repo](https://github.com/jodyphelan/ntmdb](https://github.com/pathogen-profiler/ntm-db/tree/main/db). Please note that these mutation catalogues are still under development and are currently still being validated!
 
 If you would like to suggest another organism please leave a comment in [this thread](https://github.com/jodyphelan/NTM-Profiler/discussions/6).
 
