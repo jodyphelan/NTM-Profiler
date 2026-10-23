@@ -77,7 +77,9 @@ contents of the error log (%s)
 
 
 def cli_profile(args):
-
+    args.callers = [args.caller,"delly"]
+    if args.no_delly:
+        args.callers.remove("delly")
     ntmp.check_for_databases(args)
 
     pp.process_args(args)

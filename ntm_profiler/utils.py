@@ -1,7 +1,7 @@
 import sys
 import pathogenprofiler as pp
 import argparse
-from pathogenprofiler.models import BamQC, SpeciesPrediction, DrGene, SequenceQC
+from pathogenprofiler.models import BamQC, SpeciesPrediction, DrGene, SequenceQC, FastaQC
 from typing import List
 import logging
 import csv
@@ -51,7 +51,7 @@ def add_coverage_to_genes(genes: list, qc: SequenceQC):
     for gene in genes:
         if isinstance(gene,DrGene):
             # if qc is BamQC
-            if isinstance(qc, BamQC):
+            if isinstance(qc, BamQC|FastaQC):
                 for target in qc.target_qc:
                     if (gene.gene_id == target.target) or (gene.gene_name == target.target):
                         gene.coverage = target.percent_depth_pass
@@ -90,7 +90,7 @@ def reformat_variant_csv_file(filename: str, outfile: str) -> str:
     rows = []
     include_mutation = False
 
-    for row in csv.DictReader(open(filename)):
+    for row in csv.DictReader(open(filename,encoding='utf-8-sig')):
         new_rows = {
             'Gene': row['Gene'],
         }
