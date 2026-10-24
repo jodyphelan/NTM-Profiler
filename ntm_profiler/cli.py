@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import shutil
 import sys
 import argparse
 import ntm_profiler as ntmp
@@ -217,7 +218,7 @@ def cli_profile(args):
 
     for file,target in result_files.items():
         if os.path.isfile(file):
-            os.rename(file,target)
+            shutil.move(file,target)
 
     if not args.no_cleanup:
         pp.run_cmd(f"rm {args.files_prefix}*")
